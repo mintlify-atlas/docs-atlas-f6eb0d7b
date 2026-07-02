@@ -1,7 +1,7 @@
 ---
 title: "Library, Watch Progress, and Cloud Sync in NuvioTV"
 sidebarTitle: "Library"
-description: "NuvioTV tracks watch history and continue-watching state locally and syncs to a Nuvio account. Debrid cloud libraries from Torbox and Premiumize are also accessible."
+description: "NuvioTV tracks watch history and continue-watching progress locally and syncs to a Nuvio account, with debrid cloud library access."
 ---
 
 NuvioTV maintains a local library of everything you have saved or started watching, and optionally syncs it to the cloud through your Nuvio account. The Library screen also surfaces your debrid provider's cloud file storage and, when Trakt is connected, your Trakt watch lists.
@@ -21,18 +21,26 @@ NuvioTV maintains a local library of everything you have saved or started watchi
 
 ```kotlin
 data class WatchProgress(
-    val contentId: String,       // IMDb ID of the movie or series
-    val contentType: String,     // "movie" or "series"
+    val contentId: String,              // IMDb ID of the movie or series
+    val contentType: String,            // "movie" or "series"
     val name: String,
     val poster: String?,
-    val videoId: String,         // Specific episode video ID
-    val season: Int?,            // null for movies
-    val episode: Int?,           // null for movies
+    val backdrop: String?,              // Backdrop artwork URL
+    val logo: String?,                  // Logo image URL
+    val videoId: String,                // Specific episode video ID
+    val season: Int?,                   // null for movies
+    val episode: Int?,                  // null for movies
     val episodeTitle: String?,
-    val position: Long,          // Resume position in milliseconds
-    val duration: Long,          // Total duration in milliseconds
-    val lastWatched: Long,       // Unix timestamp
-    val source: String           // "local", "trakt_playback", "trakt_history", "trakt_show_progress"
+    val position: Long,                 // Resume position in milliseconds
+    val duration: Long,                 // Total duration in milliseconds
+    val lastWatched: Long,              // Unix timestamp when last watched
+    val addonBaseUrl: String? = null,   // Addon used to play this item
+    val progressPercent: Float? = null, // 0–100 from remote sources (e.g. Trakt playback)
+    val source: String = SOURCE_LOCAL,  // "local", "trakt_playback", "trakt_history", "trakt_show_progress"
+    val traktPlaybackId: Long? = null,
+    val traktMovieId: Int? = null,
+    val traktShowId: Int? = null,
+    val traktEpisodeId: Int? = null
 )
 ```
 
@@ -73,7 +81,7 @@ data class SavedLibraryItem(
 )
 ```
 
-The Library screen lets you filter saved items by type (movies / series) and sort them. `LibraryEntry` is the unified model used when Trakt list data is merged with local saves — it extends `SavedLibraryItem` with Trakt-specific fields (`traktRank`, `traktId`) and a `listKeys` set that records which library lists the item belongs to.
+The Library screen lets you filter saved items by type (movies / series) and sort them. `LibraryEntry` is the unified model used when Trakt list data is merged with local saves. It is a standalone data class (not a subtype of `SavedLibraryItem`) that carries all the same display fields plus Trakt-specific additions: `traktRank: Int?`, `imdbId: String?`, `tmdbId: Int?`, `traktId: Int?`, `listedAt: Long`, and a `listKeys: Set<String>` that records which library lists the item belongs to.
 
 ## Watched history
 

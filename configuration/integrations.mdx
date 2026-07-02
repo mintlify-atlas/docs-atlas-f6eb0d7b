@@ -1,7 +1,7 @@
 ---
 title: "Third-Party Integrations: Trakt, TMDB, MDBList, and Anime-Skip"
 sidebarTitle: "Integrations"
-description: "Connect NuvioTV to Trakt for scrobbling, TMDB for metadata, MDBList for ratings, and Anime-Skip for automatic intro detection. Configuration reference for all integrations."
+description: "Connect NuvioTV to Trakt for watch scrobbling, TMDB for metadata, MDBList for ratings, and Anime-Skip for intro detection. Full configuration reference."
 ---
 
 NuvioTV can connect to several third-party services to enrich metadata, surface ratings, scrobble watch progress, and detect content segments automatically. All four integrations are configured from **Settings → Integration** in Advanced mode. TMDB, MDBList, and Anime-Skip are hidden in Essential mode; Trakt has limited visibility in Essential.
@@ -100,7 +100,7 @@ The Movie Database (TMDB) is NuvioTV's primary source for poster images, backdro
 | `language` | Preferred metadata language from `AVAILABLE_TMDB_LANGUAGES` |
 | `useArtwork` | Fetch poster/backdrop images from TMDB |
 
-Additional metadata toggles include basic info, cast display, ratings, and more, all individually enabling or disabling TMDB data types.
+Additional per-data-type toggles are available, each individually enabling or disabling a TMDB data category: `useBasicInfo` (description, genres, rating), `useDetails` (runtime, status, country), `useReleaseDates`, `useCredits` (cast and crew), `useProductions` (production companies), `useNetworks` (network logos), `useEpisodes` (episode titles and thumbnails), `useTrailers` (when trailer playback is enabled by build policy), `useMoreLikeThis` (recommendations), and `useCollections` (movie collection groupings).
 
 **Default API access:** NuvioTV includes built-in TMDB API access. You can override this with a personal TMDB API key for higher rate limits. Enter your key in **Settings → Integration → TMDB → API Key**. Personal keys are subject to TMDB's standard rate limits per their developer agreement.
 
@@ -121,6 +121,8 @@ MDBList overlays individual score rows sourced from:
 | TMDB | `showTmdb` |
 | Letterboxd | `showLetterboxd` |
 | Rotten Tomatoes | `showTomatoes` |
+| Audience Score | `showAudience` |
+| Metacritic | `showMetacritic` |
 
 Each source can be independently enabled or disabled. The combined result is stored in the `MDBListRatings` domain model.
 

@@ -53,7 +53,7 @@ The device-code flow is designed for TV interfaces where typing a password is aw
 
 ### API key — Real-Debrid
 
-Real-Debrid uses `DebridProviderAuthMethod.ApiKey`. Paste your Real-Debrid API key directly into the field in **Settings → Debrid → Real-Debrid**. Because `visibleInUi = false`, Real-Debrid does not appear in the normal settings UI and must be added by advanced users who know the provider ID.
+Real-Debrid uses `DebridProviderAuthMethod.ApiKey`. Because `visibleInUi = false`, Real-Debrid does not appear in the normal debrid settings UI and is excluded from `configuredServices()`. Real-Debrid stream resolution is handled automatically when an addon provides a stream pre-annotated with `clientResolve.service = "realdebrid"` and a matching API key is stored in `DebridSettings.realDebridApiKey`. The `DirectDebridResolver` routes such streams to `RealDebridDirectDebridResolver` directly by matching the service ID.
 
 ## Resolution flow
 

@@ -170,7 +170,7 @@ The sidebar navigation items (Home, Search, Library, Settings, and optionally Di
     title="Addons & Plugins"
     href="/development/architecture"
   >
-    Stremio-compatible addon manifest system plus full-flavor Cloudstream APK plugin loading.
+    Stremio-compatible addon manifest system plus full-flavor Cloudstream `.cs3` DEX plugin loading.
   </Card>
   <Card
     icon="cloud"
@@ -220,7 +220,7 @@ The stock `androidx.media3` modules are excluded from the dependency graph and r
 
 `StreamBadgePresentation` (in `core/streams/`) post-processes the raw stream list to attach quality badges (resolution, HDR format, audio codec, debrid provider) based on configurable `StreamBadgeRules`.
 
-**Cloudstream plugins** (full flavor only) are side-loaded as APKs. `ExternalExtensionLoader` uses `DexClassLoader` to load a plugin APK from the app's private storage, locates the class annotated with `@CloudstreamPlugin`, and wraps it in `ReflectivePluginWrapper` if it uses a non-standard base class. `PluginManager` manages the lifecycle of installed plugins, enforces a `MAX_CONCURRENT_SCRAPERS = 10` semaphore, applies a `SCRAPER_TIMEOUT_MS = 120_000` safety net, and limits results to `MAX_RESULT_ITEMS = 150` per search. `PluginRuntimeHooks` provides `onApplicationCreate(Application)` and `onActivityCreate(Activity)` lifecycle callbacks wired from `NuvioApplication` and `MainActivity`.
+**Cloudstream plugins** (full flavor only) are side-loaded as `.cs3` DEX files. `ExternalExtensionLoader` uses `DexClassLoader` to load a plugin `.cs3` file from the app's private storage, locates the class annotated with `@CloudstreamPlugin`, and wraps it in `ReflectivePluginWrapper` if it uses a non-standard base class. `PluginManager` manages the lifecycle of installed plugins, enforces a `MAX_CONCURRENT_SCRAPERS = 10` semaphore, applies a `SCRAPER_TIMEOUT_MS = 120_000` safety net, and limits results to `MAX_RESULT_ITEMS = 150` per search. `PluginRuntimeHooks` provides `onApplicationCreate(Application)` and `onActivityCreate(Activity)` lifecycle callbacks wired from `NuvioApplication` and `MainActivity`.
 
 ### Debrid Subsystem
 

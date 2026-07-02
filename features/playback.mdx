@@ -1,7 +1,7 @@
 ---
-title: "Media Playback Engines and HDR Support in NuvioTV"
+title: "Playback Engines and Dolby Vision HDR Support in NuvioTV"
 sidebarTitle: "Playback"
-description: "NuvioTV uses ExoPlayer and MPV as dual playback engines with automatic failover, Dolby Vision P7-to-P8.1 transcoding, frame-rate matching, and hardware decoder selection."
+description: "NuvioTV ships ExoPlayer and MPV as dual playback engines with Dolby Vision transcoding, frame-rate matching, and hardware decoder selection."
 ---
 
 NuvioTV ships two full playback engines — ExoPlayer (Media3) and MPV — and can switch between them automatically or on demand. Both engines share the same player UI, subtitle renderer, and track-selection system, so the experience is consistent regardless of which engine is active. Advanced HDR processing, frame-rate matching, and external player support layer on top of both engines.
@@ -25,7 +25,7 @@ Go to **Settings → Playback → Player engine** to set your preferred internal
 |---|---|
 | `EXOPLAYER` | Always use ExoPlayer (default) |
 | `MVP_PLAYER` | Always use MPV |
-| `AUTO` | NuvioTV chooses based on stream type; prefers ExoPlayer, falls back to MPV |
+| `AUTO` | NuvioTV selects the engine per stream: ExoPlayer for HDR/Dolby Vision content, MPV for anime; ExoPlayer otherwise |
 
 <Tip>
   Use MPV when ExoPlayer cannot render a specific stream correctly — for example, some HEVC streams with unusual container configurations, or streams where you need MPV's native subtitle positioning. Use ExoPlayer for Dolby Vision content on supported hardware, since the DV7→DV8.1 pipeline is integrated exclusively into the ExoPlayer path.
@@ -41,7 +41,7 @@ You can also switch engines manually mid-playback from the in-player controls (t
 
 NuvioTV includes a native bridge (`libdovi_bridge`) that rewrites Dolby Vision Profile 7 RPU NALs to Profile 8.1 in real time, enabling DV playback on devices that only expose a Profile-8 decoder.
 
-`DoviBridge` wraps the native library and is only active when the build flag `DOVI_NATIVE_ENABLED=true` is set and a second flag `DOVI_EXTRACTOR_HOOK_READY` confirms the Matroska extractor hook is integrated. At startup, `DoviBridge.probeRealtimeConversionSupport()` runs a self-test with a synthetic RPU payload to confirm the pipeline is working before any real content is processed.
+`DoviBridge` wraps the native library and is only active when the build flag `DOVI_NATIVE_ENABLED=true` is set and a second flag `DOVI_EXTRACTOR_HOOK_READY` confirms the Matroska extractor hook is integrated. At startup, `DoviBridge.probeRealtimeConversionSupport(streamUrl)` runs a self-test with a synthetic RPU payload to confirm the pipeline is working before any real content is processed.
 
 `DolbyVisionBaseLayerPolicy` decides the handling strategy per stream and display:
 

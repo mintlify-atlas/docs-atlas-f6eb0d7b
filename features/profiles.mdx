@@ -1,7 +1,7 @@
 ---
 title: "Multi-Profile Support and Account Management in NuvioTV"
 sidebarTitle: "Profiles"
-description: "NuvioTV supports multiple user profiles per device with separate watch history, addon configurations, and PIN-based access control. Profiles sync with a Nuvio account."
+description: "Create up to six user profiles with separate watch history, addon lists, and PIN protection. Sync profiles across devices with a Nuvio account."
 ---
 
 NuvioTV supports up to six profiles per device. Each profile carries its own watch history, saved library items, addon configuration, and playback preferences, making it suitable for shared TVs in a household. Profiles can be PIN-protected and optionally synced to a Nuvio account for cross-device continuity.
@@ -10,7 +10,7 @@ NuvioTV supports up to six profiles per device. Each profile carries its own wat
 
 The **primary profile** always has `id = 1`. It is the owner of the device's addon list and cannot be deleted.
 
-**Secondary profiles** (ids 2–6) have two addon modes, set at creation time via the `usesPrimaryAddons` flag:
+**Secondary profiles** (ids 2–6) have two addon modes, set at creation time via the `usesPrimaryAddons` flag on the `UserProfile` data class (which also carries `usesPrimaryPlugins`, `avatarId`, and `avatarUrl`):
 
 - `usesPrimaryAddons = true` — the profile inherits the primary profile's addon list in read-only mode. The Add-ons screen shows a read-only notice and the QR web config mode is `COLLECTIONS_ONLY` — secondary-profile users can manage their own collections but cannot install or remove addons.
 - `usesPrimaryAddons = false` — the profile maintains its own independent addon list with full management access.
@@ -87,12 +87,12 @@ Once linked, both devices share the same effective user ID (resolved via the `ge
 
 `AccountLocalDataResetService.clearAfterSignOut()` is called whenever the user explicitly signs out or when an unexpected session invalidation is detected. It clears:
 
+- Android TV channel data (`AndroidTvChannelManager.clearAll()`)
+- All profile-scoped DataStore preferences (`ProfileDataStoreFactory.clearProfileScopedData()`)
 - Profile metadata (`ProfileDataStore.clearAll()`)
 - Profile lock states (`ProfileLockStateDataStore.clearAll()`)
-- All profile-scoped DataStore files (identified by the `_p{id}.preferences_pb` suffix)
-- Plugin code directories
-- Android TV channel data
-- Continue Watching enrichment cache
+- Continue Watching enrichment cache (`cw_enrichment` directory)
+- Plugin code directories (`plugin_code` and `plugin_code_p*` directories)
 
 Local data that is not account-linked (device player preferences, aspect ratio settings) is retained.
 

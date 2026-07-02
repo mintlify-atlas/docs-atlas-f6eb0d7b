@@ -1,5 +1,5 @@
 ---
-title: "Install NuvioTV on Android TV"
+title: "Install NuvioTV on Android TV: APK Sideload & ADB Guide"
 sidebarTitle: "Installation"
 description: "Download and sideload NuvioTV APK on your Android TV device. Covers APK installation, ADB sideloading, and device compatibility requirements."
 ---
@@ -23,10 +23,10 @@ NuvioTV is distributed as an APK and is not listed on the Google Play Store in i
 
 NuvioTV ships two distribution flavors. Make sure you download the right one:
 
-| Flavor | Package ID | Plugin support | In-app updates | Trailers |
-|---|---|---|---|---|
-| `full` | `com.nuvio.tv` | ✅ Yes | ✅ Yes | ✅ Yes |
-| `playstore` | `com.nuvio.app` | ❌ No | ❌ No | ✅ External only |
+| Flavor | Package ID | Plugin support | In-app updates | In-app trailers | External trailers |
+|---|---|---|---|---|---|
+| `full` | `com.nuvio.tv` | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| `playstore` | `com.nuvio.app` | ❌ No | ❌ No | ❌ No | ✅ Yes |
 
 **Always use the `full` flavor** unless you specifically need the Play Store variant. The `full` APK is the one published on GitHub Releases.
 
@@ -101,10 +101,10 @@ A quick reference for the most common build tasks:
 git clone https://github.com/tapframe/NuvioTV.git
 cd NuvioTV
 
-# Compile the full debug flavor
+# Build the full debug flavor
 ./gradlew :app:assembleFullDebug
 
-# Install directly to a connected device / emulator
+# Launch the debug build on a connected device (debug builds use the com.nuviodebug.com package ID)
 adb shell am start -n com.nuviodebug.com/com.nuvio.tv.MainActivity
 ```
 

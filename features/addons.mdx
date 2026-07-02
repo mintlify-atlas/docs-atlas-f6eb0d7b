@@ -1,7 +1,7 @@
 ---
-title: "Installing and Managing Stremio Addons in NuvioTV"
+title: "Stremio Addon Installation and Management in NuvioTV"
 sidebarTitle: "Addons"
-description: "NuvioTV uses Stremio-compatible addons to provide catalogs and stream sources. Learn how to install addons by URL, manage them from your phone, and understand the addon manifest format."
+description: "NuvioTV uses Stremio-compatible addons for catalogs, metadata, and streams. Install by URL or phone QR code, enable/disable, and reorder catalog rows."
 ---
 
 Addons are the content engine of NuvioTV. Every row on your Home screen comes from an addon catalog, every piece of metadata is fetched from an addon, and every stream URL is provided by an addon. Without at least one installed and enabled addon, the Home screen will be empty.
@@ -26,20 +26,25 @@ An addon is described by a `manifest.json` file hosted at a stable URL. NuvioTV 
 
 ```kotlin
 data class Addon(
-    val id: String,                        // Globally unique reverse-domain identifier
-    val name: String,                      // Short display name
-    val displayName: String,               // Overrides name in the UI if set
-    val version: String,                   // SemVer string, shown in the addon card
-    val description: String?,             // One-line description shown in the addon card
-    val logo: String?,                     // Logo image URL
-    val background: String?,              // Optional background artwork URL
-    val baseUrl: String,                   // Root URL — manifest lives at baseUrl/manifest.json
-    val catalogs: List<CatalogDescriptor>, // Content rows this addon provides
-    val types: List<ContentType>,          // "movie", "series", etc.
-    val resources: List<AddonResource>,    // Declared capabilities: catalog, meta, stream, subtitles
-    val idPrefixes: List<String>,          // ID namespaces this addon can resolve (e.g. "tt" for IMDb)
-    val behaviorHints: AddonBehaviorHints?,// configurable, configurationRequired, newEpisodeNotifications
-    val enabled: Boolean                   // Toggled by the user; disabled addons are skipped
+    val id: String,                          // Globally unique reverse-domain identifier
+    val name: String,                        // Short display name
+    val displayName: String = name,          // Overrides name in the UI if set
+    val version: String,                     // SemVer string, shown in the addon card
+    val description: String?,               // One-line description shown in the addon card
+    val logo: String?,                       // Logo image URL
+    val background: String? = null,          // Optional background artwork URL
+    val baseUrl: String,                     // Root URL — manifest lives at baseUrl/manifest.json
+    val catalogs: List<CatalogDescriptor>,   // Content rows this addon provides
+    val types: List<ContentType>,            // "movie", "series", etc.
+    val rawTypes: List<String>,              // Raw API type strings derived from types
+    val resources: List<AddonResource>,      // Declared capabilities: catalog, meta, stream, subtitles
+    val idPrefixes: List<String>,            // ID namespaces this addon can resolve (e.g. "tt" for IMDb)
+    val behaviorHints: AddonBehaviorHints?,  // configurable, configurationRequired, newEpisodeNotifications
+    val stremioAddonsConfig: StremioAddonsConfig? = null, // Issuer/signature for signed addon configs
+    val manifestLanguage: String? = null,    // BCP 47 language tag from the manifest
+    val configVersion: Long? = null,         // Monotonically increasing config version
+    val timestamp: Long? = null,             // Unix timestamp of the last manifest fetch
+    val enabled: Boolean = true              // Toggled by the user; disabled addons are skipped
 )
 ```
 

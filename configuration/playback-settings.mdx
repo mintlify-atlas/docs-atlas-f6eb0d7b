@@ -1,17 +1,17 @@
 ---
 title: "Playback Settings Reference for NuvioTV"
 sidebarTitle: "Playback Settings"
-description: "Configure NuvioTV's player engine, stream auto-play mode, next-episode behavior, P2P streaming, buffering, and advanced decoder options for optimal playback."
+description: "Configure NuvioTV's player engine, stream selection, next-episode behavior, P2P streaming, and advanced buffer and decoder options for optimal playback."
 ---
 
 NuvioTV's playback settings control everything from which player engine is used to how streams are selected, how the next episode is triggered, and how the internal buffer manages memory. Settings are split across two surfaces: a simplified view in Essential mode (`EssentialPlaybackSettingsContent`) and the full expandable sections in Advanced mode (`PlaybackSettingsSections`).
 
 <CardGroup cols={2}>
   <Card title="Essential Playback" icon="play" href="#essential-mode-surface">
-    Player preference, Manual/Auto stream selection, auto-play next episode, P2P toggle, preferred subtitle and audio language.
+    Manual/Auto stream selection, auto-play next episode, P2P toggle, preferred subtitle language, forced subtitles, preferred audio language, and decoder priority.
   </Card>
   <Card title="Advanced Playback" icon="sliders" href="#advanced-mode-surface">
-    All of the above plus internal engine selection, regex stream matching, frame-rate matching, buffer tuning, decoder priority, MPV settings, and more.
+    Player preference, internal engine selection, regex stream matching, frame-rate matching, buffer tuning, decoder priority, MPV settings, and more.
   </Card>
 </CardGroup>
 
@@ -165,7 +165,7 @@ A **Reset buffer settings to defaults** action and a **Reset network settings to
 
 ## Essential Mode Surface
 
-In Essential mode, `EssentialPlaybackSettingsContent` renders two groups:
+In Essential mode, `EssentialPlaybackSettingsContent` renders two groups. Player preference is **not** surfaced here — it is an Advanced-mode setting.
 
 **Playback Basics**
 - Stream selection (Manual ↔ Auto-play first result toggle)

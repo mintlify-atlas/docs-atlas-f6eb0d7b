@@ -1,7 +1,7 @@
 ---
 title: "Essential vs Advanced Mode: Choosing Your NuvioTV Experience"
 sidebarTitle: "Experience Modes"
-description: "NuvioTV offers Essential mode for simplified setup and Advanced mode for full control. Learn what each mode shows, how to switch, and how defaults are applied for new installs."
+description: "NuvioTV offers Essential and Advanced modes. Learn what each mode shows, how to switch between them, and how defaults are applied for new installs."
 ---
 
 NuvioTV ships with two distinct experience modes that control which settings, customization surfaces, and integrations are visible in the app. The mode you choose does not restrict what the app can do — it only changes how much of the configuration surface is presented. You can switch modes at any time without losing any data.
@@ -24,8 +24,8 @@ enum class ExperienceMode {
     Essential keeps:
     - Home, Search, Library, Add-ons, and Settings (simplified).
     - Add-on installation via URL and the phone QR manager.
-    - Basic playback controls: player preference, stream selection (Manual or Auto), auto-play next episode, P2P toggle.
-    - Subtitle and audio basics: preferred language and subtitle size.
+    - Basic playback controls: stream selection (Manual or Auto), auto-play next episode, P2P toggle.
+    - Subtitle and audio basics: preferred subtitle language, forced subtitles, preferred audio language, and decoder priority.
     - Appearance basics: theme and app language.
     - Account sign-in and profile management (primary profile only).
     - About screen.
@@ -117,7 +117,7 @@ The table below captures what is shown or hidden in each mode. This is the canon
 | Appearance: font | Optional | Show | |
 | AMOLED options | Hide | Show | |
 | Layout settings | Hide | Show | Essential sets Modern at first run |
-| Player preference | Show | Show | Recovery path if internal playback fails |
+| Player preference | Hide | Show | Defaults remain active in Essential |
 | Internal engine (ExoPlayer/MPV) | Hide | Show | |
 | Auto-switch engine on error | Hide | Show | |
 | Loading and pause overlays | Hide | Show | Defaults remain active |
@@ -130,7 +130,7 @@ The table below captures what is shown or hidden in each mode. This is the canon
 | Reuse last link cache | Hide | Show | |
 | Preferred audio language | Show | Show | |
 | Secondary audio language | Hide | Show | |
-| Decoder priority | Hide | Show | |
+| Decoder priority | Show | Show | Shown in Essential subtitles and audio group |
 | Skip silence | Hide | Show | |
 | Tunneling | Hide | Show | |
 | Dolby Vision profile fallback | Hide | Show | |
@@ -138,7 +138,7 @@ The table below captures what is shown or hidden in each mode. This is the canon
 | Preferred subtitle language | Show | Show | |
 | Secondary subtitle language | Hide | Show | |
 | Subtitle startup mode | Hide | Show | |
-| Subtitle size | Show | Show | |
+| Subtitle size | Hide | Show | Defaults remain active in Essential |
 | Subtitle vertical offset | Hide | Show | |
 | Subtitle colors, outline, bold | Hide | Show | |
 | libass and render type | Hide | Show | |
@@ -173,18 +173,18 @@ Both modes expose an **Experience** section at the top of the settings rail. Fro
 
 ## Build Flavor Notes
 
-`AppFeaturePolicy` gates certain features at build time regardless of experience mode:
+`AppFeaturePolicy` gates certain features at build time regardless of experience mode. The full flavor policy is:
 
-| Policy Flag | Full Flavor | Play Store Flavor |
-|---|---|---|
-| `pluginsEnabled` | `true` | `false` |
-| `inAppUpdatesEnabled` | `true` | `false` |
-| `inAppTrailerPlaybackEnabled` | `true` | `false` |
-| `externalTrailerPlaybackEnabled` | `true` | `true` |
-| `trailerPlaybackMode` | `IN_APP` | `EXTERNAL` |
-| `imdbRatingLogoEnabled` | `true` | `false` |
+| Policy Flag | Value |
+|---|---|
+| `pluginsEnabled` | `true` |
+| `inAppUpdatesEnabled` | `true` |
+| `inAppTrailerPlaybackEnabled` | `true` |
+| `externalTrailerPlaybackEnabled` | `true` |
+| `trailerPlaybackMode` | `IN_APP` |
+| `imdbRatingLogoEnabled` | `true` |
 
-Even in Advanced mode, plug-ins and in-app updates are not shown in the Play Store flavor because `AppFeaturePolicy.pluginsEnabled` is `false`. Experience mode visibility checks are always combined with build policy checks.
+The Play Store flavor defines its own `AppFeaturePolicy` object with `pluginsEnabled = false`, `inAppUpdatesEnabled = false`, and `inAppTrailerPlaybackEnabled = false`. Even in Advanced mode, plug-ins and in-app updates are not shown in the Play Store flavor because `AppFeaturePolicy.pluginsEnabled` is `false`. Experience mode visibility checks are always combined with build policy checks.
 
 ## Essential Mode Recommended Defaults
 

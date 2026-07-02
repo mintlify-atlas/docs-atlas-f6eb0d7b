@@ -55,13 +55,13 @@ The project uses Gradle's included wrapper (`./gradlew`), so you do not need a s
 
 ## local.properties Configuration
 
-All secrets and optional feature flags are supplied through `local.properties`. The file is **never committed** to source control. Below is a complete reference for every key defined in `local.example.properties` and `app/build.gradle.kts`.
+All secrets and optional feature flags are supplied through `local.properties`. The file is **never committed** to source control. Below is a complete reference for every key defined in `local.example.properties`.
 
 ### Supabase Backend
 
 ```properties
-SUPABASE_URL=your_supabase_url_here
-SUPABASE_ANON_KEY=your_supabase_anon_key_here
+NUVIO_SUPABASE_URL=your_supabase_url_here
+NUVIO_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 AVATAR_PUBLIC_BASE_URL=your_supabase_avatar_public_base_url_here
 ```
 
@@ -129,22 +129,22 @@ DOVI_ENABLE_REAL_LINK=true
 
 # Optional explicit overrides (otherwise resolved from the prebuilt root below):
 # DOVI_LIBDOVI_STATIC_LIB=/path/to/libdovi.a
-# DOVI_LIBDOWI_INCLUDE_DIR=/path/to/libdowi/include
-DOVI_LIBDOVI_PREBUILT_ROOT=DV7/libdowi
+# DOVI_LIBDOVI_INCLUDE_DIR=/path/to/libdovi/include
+DOVI_LIBDOVI_PREBUILT_ROOT=DV7/libdovi
 ```
 
 <Warning>
-  Dolby Vision native build is **optional and advanced**. It requires a prebuilt `libdowi` static archive (`.a`) built for Android ARM/ARM64. If you do not have the `DV7/libdowi` directory, set `DOVI_NATIVE_ENABLED=false`, `DOVI_EXTRACTOR_HOOK_READY=false`, and `DOVI_ENABLE_REAL_LINK=false` — the build will skip the CMake external native build step entirely and the app will fall back to software Dolby Vision handling. These flags are read by `app/build.gradle.kts` and passed as CMake arguments to `src/main/cpp/CMakeLists.txt`.
+  Dolby Vision native build is **optional and advanced**. It requires a prebuilt `libdovi` static archive (`.a`) built for Android ARM/ARM64. If you do not have the `DV7/libdovi` directory, set `DOVI_NATIVE_ENABLED=false`, `DOVI_EXTRACTOR_HOOK_READY=false`, and `DOVI_ENABLE_REAL_LINK=false` — the build will skip the CMake external native build step entirely and the app will fall back to software Dolby Vision handling. These flags are read by `app/build.gradle.kts` and passed as CMake arguments to `src/main/cpp/CMakeLists.txt`.
 </Warning>
 
 | Key | Purpose |
 |---|---|
 | `DOVI_NATIVE_ENABLED` | Enables the `dovi_bridge` native library and runtime bridge |
 | `DOVI_EXTRACTOR_HOOK_READY` | Marks extractor hook integration as active in `BuildConfig` |
-| `DOVI_ENABLE_REAL_LINK` | Links the prebuilt `libdowi.a` into `dovi_bridge` (vs. stub build) |
-| `DOVI_LIBDOWI_PREBUILT_ROOT` | Root path to the `DV7/libdowi` prebuilt tree — headers and `.a` are resolved from here |
-| `DOVI_LIBDOWI_STATIC_LIB` | Explicit override for the `.a` path (optional; takes precedence over prebuilt root) |
-| `DOVI_LIBDOWI_INCLUDE_DIR` | Explicit override for the include directory (optional) |
+| `DOVI_ENABLE_REAL_LINK` | Links the prebuilt `libdovi.a` into `dovi_bridge` (vs. stub build) |
+| `DOVI_LIBDOVI_PREBUILT_ROOT` | Root path to the `DV7/libdovi` prebuilt tree — headers and `.a` are resolved from here |
+| `DOVI_LIBDOVI_STATIC_LIB` | Explicit override for the `.a` path (optional; takes precedence over prebuilt root) |
+| `DOVI_LIBDOVI_INCLUDE_DIR` | Explicit override for the include directory (optional) |
 
 ---
 
@@ -166,7 +166,7 @@ The `app` module defines a single flavor dimension named `distribution` with two
     This flavor includes the `app/src/full/` source set, which provides:
     - `AppFeaturePolicy` with all features enabled
     - `PluginManager` and `PluginRuntime` for Cloudstream extension support
-    - `ExternalExtensionLoader` — loads Cloudstream plugins as side-loaded APKs via `DexClassLoader`
+    - `ExternalExtensionLoader` — loads Cloudstream plugins as side-loaded `.cs3` DEX files via `DexClassLoader`
     - In-app update checks via the GitHub Releases API (`GitHubReleaseApi`)
 
     The debug application ID for this flavor is `com.nuviodebug.com`.

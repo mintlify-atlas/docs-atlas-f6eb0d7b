@@ -1,7 +1,7 @@
 ---
 title: "Subtitle and Audio Configuration in NuvioTV"
 sidebarTitle: "Subtitles & Audio"
-description: "Configure preferred subtitle and audio languages, subtitle rendering with libass, font size, colors, timing offset, and hardware decoder priority in NuvioTV."
+description: "Configure subtitle and audio languages, libass rendering, font size, colors, timing offset, and hardware decoder priority in NuvioTV."
 ---
 
 NuvioTV gives you granular control over both subtitle rendering and audio output. Subtitle settings live in `PlaybackSubtitleSettings.kt` and are backed by the `subtitleStyle` object inside `PlayerSettings`. Audio settings live in `PlaybackAudioSettings.kt`. Both sections are accessible in **Settings → Playback** in Advanced mode; Essential mode surfaces a minimal subset for quick setup.
@@ -41,7 +41,7 @@ NuvioTV gives you granular control over both subtitle rendering and audio output
 
     ### Subtitle Size
 
-    **Essential + Advanced.** A percentage slider from 50% to 200% in steps of 10. Stored as `subtitleStyle.size`. Displayed in the player using the active renderer.
+    **Advanced only.** A percentage slider from 50% to 200% in steps of 10. Stored as `subtitleStyle.size`. Displayed in the player using the active renderer.
 
     ```kotlin
     SliderSettingsItem(
@@ -84,6 +84,9 @@ NuvioTV gives you granular control over both subtitle rendering and audio output
     |---|---|
     | `OVERLAY_OPEN_GL` | Renders subtitles via an OpenGL overlay; best performance on modern hardware |
     | `OVERLAY_CANVAS` | Renders subtitles via a Canvas overlay; more compatible but may be slower |
+    | `EFFECTS_OPEN_GL` | OpenGL-based effects renderer; supports advanced ASS effects and animations |
+    | `EFFECTS_CANVAS` | Canvas-based effects renderer; broader device compatibility for effects |
+    | `CUES` | Standard platform cue renderer via libass; most compatible fallback |
 
     Set via:
     ```kotlin
@@ -115,7 +118,7 @@ NuvioTV gives you granular control over both subtitle rendering and audio output
 
     ### Decoder Priority
 
-    **Advanced only.** Controls whether NuvioTV prefers the device's hardware decoder or ExoPlayer's software decoder. The value is an integer index:
+    **Essential + Advanced.** Controls whether NuvioTV prefers the device's hardware decoder or ExoPlayer's software decoder. The value is an integer index:
 
     | Value | Label |
     |---|---|

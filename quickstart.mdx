@@ -1,47 +1,105 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with NuvioTV"
+sidebarTitle: "Quickstart"
+description: "Go from a fresh NuvioTV install to streaming your first video in five steps. Covers account setup, addon installation, and first playback."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+This guide takes you from a freshly installed NuvioTV to playing your first video. The entire flow takes about five minutes. If you haven't installed the app yet, start with the [Installation](/installation) guide and come back here once the app is open.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+<Note>
+  NuvioTV shows no content on the Home screen until at least one addon is installed. Step 3 below is the most important step — skip it and the app will appear empty.
+</Note>
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Launch NuvioTV and sign in (or skip)">
+    The very first time you open NuvioTV you will see an **account sign-in screen** with a QR code. Scanning the code opens the NuvioTV sign-in page (`https://nuvio.tv/tv-login`) on your phone, where you can create or log in to an account.
 
-    ```bash
-    npm install your-package
-    ```
+    Signing in enables:
+    - Multi-profile support with PIN protection
+    - Settings and watch history sync across devices via Supabase
+    - Automatic profile pulling on first launch
+
+    If you want to start immediately without an account, tap **Skip** (or the equivalent dismiss action). You can sign in later from **Settings → Account**.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Choose your experience mode">
+    After the sign-in step, NuvioTV asks you to choose an **experience mode**. This controls which settings surfaces and features are visible throughout the app.
+
+    <Tip>
+      If you are new to NuvioTV or the Stremio addon ecosystem, choose **Essential**. It keeps the interface focused — add-ons, playback basics, Trakt, and account settings — without exposing every tuning option at once. You can switch to Advanced at any time from **Settings → Experience mode**.
+    </Tip>
+
+    | Mode | What's included |
+    |---|---|
+    | **Essential** | Focused setup, add-ons, playback basics, Trakt, and account settings |
+    | **Advanced** | Full settings, layout controls, catalog order, collections, plugins, and diagnostics |
+
+    Select a card and NuvioTV saves your choice immediately and takes you to the main app (or to the addon setup screen if you chose Essential and have no addons yet).
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Install your first addon">
+    Navigate to **Add-ons** in the left sidebar (the puzzle-piece icon). The Add-on Manager screen offers two ways to install addons:
+
+    <Tabs>
+      <Tab title="Paste a manifest URL">
+        Every Stremio-compatible addon publishes a `manifest.json` file at a well-known URL. To install one:
+
+        1. Focus the URL input field at the top of the Add-on Manager screen.
+        2. Enter the full manifest URL, for example:
+
+           ```
+           https://example.com/manifest.json
+           ```
+
+        3. Press the **Install** button (or confirm with the D-pad center key).
+
+        NuvioTV fetches the manifest, validates it, and adds the addon to your list. Its catalogs will appear on the Home screen immediately.
+
+        Addon manifest URLs always end with `/manifest.json`. If an addon's website gives you a `stremio://` link, replace `stremio://` with `https://` and the path should resolve to the manifest.
+      </Tab>
+      <Tab title="QR code (phone browser)">
+        NuvioTV runs a local HTTP server on your TV that serves a web management UI. To use it:
+
+        1. Tap the **Manage from phone** button (phone icon) in the Add-on Manager.
+        2. A QR code appears on screen. Scan it with your phone's camera.
+        3. Your phone's browser opens the NuvioTV web UI, which shows your currently installed addons and lets you add new ones by pasting manifest URLs or browsing a catalog.
+        4. Changes made in the phone browser are reflected on the TV in real time.
+
+        This flow is especially convenient for typing long manifest URLs — your phone keyboard is far easier to use than a TV remote.
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Browse or search for a title">
+    After installing an addon, return to the **Home** screen (house icon in the sidebar). The addon's catalogs appear as horizontally scrollable rows, grouped by type (movies, series, etc.).
+
+    To find something specific, navigate to **Search** (magnifying glass icon in the sidebar). Type a title using the on-screen keyboard — results are federated across all installed addons that support search.
+
+    Navigating down from the sidebar automatically focuses the first content row on the active screen, so you can start browsing immediately with the D-pad.
+  </Step>
+
+  <Step title="Select a stream and play">
+    Select any title from the Home or Search screen to open its **Detail page**. Here you will see metadata (synopsis, cast, year, rating) and — for series — a season/episode picker.
+
+    From the Detail page you have two options:
+
+    **Auto-play** — Press the primary **Play** button. NuvioTV queries all installed addons for available streams, applies your debrid resolver (if configured), and automatically starts the highest-quality match.
+
+    **Manual stream selection** — Press **Choose stream** (or navigate to the stream list panel). Each stream entry shows its source addon name, resolution, and quality badges. Highlight a stream and confirm to start playback.
+
+    Once playback begins, the player overlays standard TV controls: play/pause, seek bar, audio track switcher, subtitle track switcher, and a stream sources panel for switching mid-playback.
+
+    <Note>
+      For significantly better stream quality and reliability, configure a debrid service after your first playback. Go to **Settings → Debrid**, choose **Torbox** or **Premiumize**, and complete the device-code authentication flow. Once configured, NuvioTV resolves torrent-backed addon streams directly through your debrid account.
+    </Note>
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## What's next
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Now that you have NuvioTV running with your first addon, explore these areas:
+
+- **Add more addons** — The more addons you install, the broader your content catalog. You can reorder catalog rows in Advanced mode under **Settings → Catalog order**.
+- **Configure debrid** — Go to **Settings → Debrid** to link Torbox, Premiumize, or Real-Debrid for fast, cached stream resolution.
+- **Connect Trakt** — Go to **Settings → Trakt** to enable automatic watch history scrobbling.
+- **Manage profiles** — Go to **Settings → Account → Manage profiles** to create additional profiles with independent watch histories and settings.

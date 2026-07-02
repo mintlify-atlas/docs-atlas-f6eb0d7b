@@ -1,0 +1,194 @@
+---
+title: "Playback Settings Reference for NuvioTV"
+sidebarTitle: "Playback Settings"
+description: "Configure NuvioTV's player engine, stream auto-play mode, next-episode behavior, P2P streaming, buffering, and advanced decoder options for optimal playback."
+---
+
+NuvioTV's playback settings control everything from which player engine is used to how streams are selected, how the next episode is triggered, and how the internal buffer manages memory. Settings are split across two surfaces: a simplified view in Essential mode (`EssentialPlaybackSettingsContent`) and the full expandable sections in Advanced mode (`PlaybackSettingsSections`).
+
+<CardGroup cols={2}>
+  <Card title="Essential Playback" icon="play" href="#essential-mode-surface">
+    Player preference, Manual/Auto stream selection, auto-play next episode, P2P toggle, preferred subtitle and audio language.
+  </Card>
+  <Card title="Advanced Playback" icon="sliders" href="#advanced-mode-surface">
+    All of the above plus internal engine selection, regex stream matching, frame-rate matching, buffer tuning, decoder priority, MPV settings, and more.
+  </Card>
+</CardGroup>
+
+## Player Preference
+
+The first choice in every playback settings surface is how NuvioTV launches content. The `PlayerPreference` enum has three values:
+
+| Value | Behavior |
+|---|---|
+| `INTERNAL` | Uses the built-in player (ExoPlayer or MPV) |
+| `EXTERNAL` | Hands the stream URL to a system player app |
+| `ASK_EVERY_TIME` | Shows a choice dialog on every stream launch |
+
+When the player preference is `EXTERNAL`, the app can optionally forward subtitle tracks and skip-segment data to compatible external players.
+
+## Internal Engine: ExoPlayer vs MPV
+
+When `PlayerPreference.INTERNAL` is active, you can choose the underlying engine. This setting is **Advanced mode only**.
+
+| Engine | Strengths | Notes |
+|---|---|---|
+| `EXOPLAYER` | Hardware decode, smooth playback for most content, Dolby Vision handling, tunneling support | Default engine |
+| `MVP_PLAYER` (MPV) | Better subtitle rendering (especially ASS/SSA), broader codec support, configurable hardware decode modes | Requires libass for full subtitle styling |
+| `AUTO` | App selects the best engine per stream | Not always predictable; use for experimentation |
+
+### Auto-Switch on Error
+
+When `autoSwitchInternalPlayerOnError` is enabled (`PlaybackSettingsSections`), the app automatically falls back to the other internal engine if the current one fails to open a stream. This is the `PlayerRuntimeControllerEngineFailover` behavior and is **Advanced mode only**.
+
+## Stream Auto-Play Mode
+
+Stream auto-play controls what happens after stream resolution returns results. The `StreamAutoPlayMode` enum covers three behaviors:
+
+<Tabs>
+  <Tab title="Manual (Essential + Advanced)">
+    `StreamAutoPlayMode.MANUAL` — the stream list is shown and the user selects a stream. This is the default for new installs and the only mode surfaced in Essential.
+
+    ```kotlin
+    // EssentialPlaybackSettingsContent toggle
+    val next = if (current == StreamAutoPlayMode.MANUAL) {
+        StreamAutoPlayMode.FIRST_STREAM
+    } else {
+        StreamAutoPlayMode.MANUAL
+    }
+    viewModel.setStreamAutoPlayMode(next)
+    ```
+  </Tab>
+  <Tab title="First Stream (Essential + Advanced)">
+    `StreamAutoPlayMode.FIRST_STREAM` — the app automatically starts the first stream result without user interaction. Can be scoped to specific add-ons or plug-ins via the allowlist settings (Advanced only).
+  </Tab>
+  <Tab title="Regex Match (Advanced only)">
+    `StreamAutoPlayMode.REGEX_MATCH` — the app evaluates a user-supplied regex pattern against stream titles and auto-selects the first match. Configure the pattern in **Settings → Playback → Stream Selection → Regex pattern**.
+
+    Example pattern to prefer 1080p HEVC streams:
+
+    ```
+    (?i)1080p.*hevc|hevc.*1080p
+    ```
+
+    Advanced options also include:
+    - **Source scope** (`StreamAutoPlaySource`): `INSTALLED_ADDONS_ONLY` or `ENABLED_PLUGINS_ONLY`.
+    - **Add-on allowlist**: restrict auto-play to a set of named add-ons.
+    - **Plug-in allowlist**: restrict auto-play to specific enabled plug-ins (full flavor only).
+    - **Auto-play timeout**: configurable per-stream wait before auto-selecting (0 s = instant, or unlimited).
+  </Tab>
+</Tabs>
+
+## Auto-Play Next Episode
+
+`streamAutoPlayNextEpisodeEnabled` enables automatic progression to the next episode in a series. When enabled, additional options become available (Advanced):
+
+- **Binge group awareness** (`streamAutoPlayPreferBingeGroupForNextEpisode`): prefers a stream from the same add-on/group that served the current episode.
+- **Reuse binge group** (`streamAutoPlayReuseBingeGroup`): re-uses the resolved binge group across episode transitions without re-querying.
+- **Next episode threshold**: how far into an episode the next-episode prompt appears. Configurable as either a percentage of runtime (`NextEpisodeThresholdMode.PERCENT`) or minutes before the end (`NextEpisodeThresholdMode.MINUTES_BEFORE_END`).
+- **Still Watching prompt**: after a configurable number of consecutive episodes (`stillWatchingEpisodeThreshold`, range 2–6), NuvioTV asks if you're still watching before continuing.
+
+## P2P Streaming
+
+<Warning>
+P2P (torrent) streaming is **disabled by default** and requires explicit user consent before the first torrent stream is played. Even when the P2P settings row is not visited, the `P2pConsentDialog` is always shown on the first torrent stream attempt. Never enable this feature on behalf of a user without explicit interaction.
+</Warning>
+
+The `TorrentSettings.p2pEnabled` flag controls whether torrent-backed streams are resolved and played. In both Essential and Advanced mode:
+
+1. The P2P toggle is visible as a `SettingsToggleRow`.
+2. Toggling it **on** triggers `P2pConsentDialog` rather than immediately enabling the feature.
+3. Only after the user confirms consent in the dialog is `viewModel.setP2pEnabled(true)` called.
+
+**Advanced-only P2P options:**
+
+- **Hide torrent stats overlay** (`hideTorrentStats`): suppresses the peer/speed HUD that appears during torrent playback.
+- **Parallel connections** (`useParallelConnections`, `parallelConnectionCount`, `parallelChunkSizeMb`): tunes how the torrent engine fetches pieces in parallel.
+
+## Loading and Player Overlays
+
+These settings are **Advanced mode only**. Defaults are active in Essential.
+
+| Setting | Default | Description |
+|---|---|---|
+| `showPlayerLoadingStatus` | On | Shows a loading status text during buffering |
+| `loadingOverlayEnabled` | On | Shows a spinner overlay while the stream loads |
+| `pauseOverlayEnabled` | On | Shows a content card/overlay when playback is paused |
+| `osdClockEnabled` | On | Shows a clock in the player OSD |
+
+## Skip Intro
+
+`skipIntroEnabled` is **on by default** and controls whether the skip-intro button appears when a segment is detected via Anime-Skip. This setting is hidden in Essential (it stays enabled). Advanced users can disable it under **Settings → Playback → General**.
+
+## Frame-Rate and Resolution Matching
+
+**Advanced mode only.** NuvioTV can switch the HDMI display mode to match the content frame rate and resolution, which is required for smooth 24 fps film playback on compatible Android TV hardware.
+
+`FrameRateMatchingMode` has three values:
+
+| Value | Behavior |
+|---|---|
+| `OFF` | No display mode switching |
+| `START` | Switch display mode at playback start |
+| `START_STOP` | Switch at start and restore original mode at stop |
+
+`resolutionMatchingEnabled` can be toggled independently to switch display resolution to match the stream.
+
+A warning is shown in the UI when the current device does not support resolution switching via the API even if `resolutionMatchingEnabled` is true (`DisplayCapabilities.supportsResolutionSwitching`).
+
+## Reuse Last Link Cache
+
+**Advanced mode only.** `streamReuseLastLinkEnabled` caches the resolved stream URL for a configurable number of hours (`streamReuseLastLinkCacheHours`). On subsequent play attempts for the same item, the cached URL is tried first, skipping stream resolution entirely.
+
+## Buffer and Network Settings
+
+**Advanced mode only.** These settings tune the ExoPlayer buffer behavior and NuvioTV's internal buffer engine. Memory usage is estimated and displayed in real time when any of these features are enabled.
+
+| Setting | Description |
+|---|---|
+| `nuvioPerformanceModeEnabled` | NuvioTV-managed native memory mode; auto-sizes buffer to device capability |
+| `bufferEngineEnabled` | Enables the custom buffer engine with manual target size |
+| `bufferBudgetManaged` | Lets the app manage the buffer budget within a safe device limit |
+| `bufferSettings.targetBufferSizeMb` | Manual target buffer size in MB |
+| `bufferSettings.minBufferMs` | Minimum buffer before playback starts (ms) |
+| `bufferSettings.maxBufferMs` | Maximum buffer maintained during playback (ms) |
+| `bufferSettings.bufferForPlaybackMs` | Buffer required to start playback after initial load (ms) |
+| `bufferSettings.bufferForPlaybackAfterRebufferMs` | Buffer required to resume after a rebuffer event (ms) |
+| `bufferSettings.backBufferDurationMs` | Duration of back-buffer retained for backward seeking (ms) |
+| `allowLargeTargetBuffer` | Allows target size above the default safe limit |
+| `parallelNetworkEnabled` | Enables parallel HTTP fetch connections |
+| `enableHttp2` | Enables HTTP/2 for compatible CDNs |
+| `vodCacheEnabled` | Enables an on-disk VOD cache for repeated seeks |
+| `vodCacheSizeMode` / `vodCacheSizeMb` | Cache size mode and manual size cap |
+
+A **Reset buffer settings to defaults** action and a **Reset network settings to defaults** action are available at the bottom of the buffer/network section.
+
+## Essential Mode Surface
+
+In Essential mode, `EssentialPlaybackSettingsContent` renders two groups:
+
+**Playback Basics**
+- Stream selection (Manual ↔ Auto-play first result toggle)
+- Auto-play next episode toggle
+- P2P streaming toggle (with consent gate)
+
+**Subtitles and Audio**
+- Preferred subtitle language
+- Use forced subtitles toggle
+- Preferred audio language
+- Decoder priority
+
+All other settings listed on this page are hidden until the user switches to Advanced mode.
+
+## Advanced Mode Surface
+
+In Advanced mode, `PlaybackSettingsSections` renders the full settings as collapsible sections:
+
+1. **General** — player preference, loading/pause overlays, OSD clock, skip intro, still watching, parental guide
+2. **Frame-Rate Matching** — AFR mode, resolution matching (with device capability detection)
+3. **Auto-Skip** — per-segment type toggles (intro, outro, recap, filler, etc.)
+4. **Stream Selection** — auto-play mode, source scope, allowlists, regex, timeout, next episode threshold, reuse last link
+5. **Audio & Video** — preferred/secondary languages, decoder priority, skip silence, audio delay, tunneling, optical passthrough, downmix, Dolby Vision P7 handling, HDR10+ SEI strip, MPV hardware decode
+6. **Subtitles** — preferred/secondary language, startup mode, size, offset, bold, colors, outline, libass, render type
+7. **P2P** — enable toggle, hide stats toggle
+8. **Buffer & Network** — all buffer and network tuning options listed above

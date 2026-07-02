@@ -1,0 +1,101 @@
+---
+title: "Multi-Profile Support and Account Management in NuvioTV"
+sidebarTitle: "Profiles"
+description: "NuvioTV supports multiple user profiles per device with separate watch history, addon configurations, and PIN-based access control. Profiles sync with a Nuvio account."
+---
+
+NuvioTV supports up to six profiles per device. Each profile carries its own watch history, saved library items, addon configuration, and playback preferences, making it suitable for shared TVs in a household. Profiles can be PIN-protected and optionally synced to a Nuvio account for cross-device continuity.
+
+## Primary and secondary profiles
+
+The **primary profile** always has `id = 1`. It is the owner of the device's addon list and cannot be deleted.
+
+**Secondary profiles** (ids 2–6) have two addon modes, set at creation time via the `usesPrimaryAddons` flag:
+
+- `usesPrimaryAddons = true` — the profile inherits the primary profile's addon list in read-only mode. The Add-ons screen shows a read-only notice and the QR web config mode is `COLLECTIONS_ONLY` — secondary-profile users can manage their own collections but cannot install or remove addons.
+- `usesPrimaryAddons = false` — the profile maintains its own independent addon list with full management access.
+
+<Note>
+  Secondary profiles with `usesPrimaryAddons = true` see the same addon catalog rows as the primary profile. They can create their own collections to reorganise how those catalogs appear on their Home screen, but cannot add or remove addons.
+</Note>
+
+## Profile selection at launch
+
+`ProfileSelectionScreen` is shown on app launch whenever any of the following conditions are true:
+
+- More than one profile exists.
+- Any profile has a PIN enabled (`ProfileLockStateDataStore.pinEnabled`).
+- The "remember last profile" feature is disabled.
+
+Once a profile is selected, `ProfileManager.setActiveProfile()` switches the active context and all data stores re-scope to the new profile ID.
+
+## Creating a new profile
+
+<Steps>
+  <Step title="Open profile settings">
+    Go to **Settings → Profiles → Add profile**.
+  </Step>
+  <Step title="Enter a name">
+    Type a display name. If left blank, NuvioTV generates a default name ("Profile 2", "Profile 3", etc.).
+  </Step>
+  <Step title="Choose an avatar colour">
+    Pick a hex colour for the profile avatar. The colour is stored as `avatarColorHex` on the `UserProfile` and displayed in the profile selector and top-bar indicator.
+  </Step>
+  <Step title="Set addon mode">
+    Choose whether this profile uses the primary profile's addons (`usesPrimaryAddons = true`) or manages its own addon list.
+  </Step>
+  <Step title="Optionally set a PIN">
+    Enable PIN protection. The 4-digit PIN is stored via `ProfileLockStateDataStore`. **There is no recovery mechanism if the PIN is forgotten — see the warning below.**
+  </Step>
+  <Step title="Save">
+    `ProfileManager.createProfile()` assigns the next available ID in the range 2–6 and persists the profile. The device limit is six profiles (`ProfileManager.MAX_PROFILES = 6`).
+  </Step>
+</Steps>
+
+<Warning>
+  PIN recovery is not available. If you forget a profile PIN, the profile data cannot be accessed without resetting the entire device. Keep a note of any PIN you set, or leave PIN protection disabled for non-sensitive profiles.
+</Warning>
+
+## PIN protection
+
+PIN state is stored per-profile in `ProfileLockStateDataStore` as a `Map<Int, Boolean>` (`pinEnabledMap`). When a PIN-enabled profile is selected at the `ProfileSelectionScreen`, the user must enter the correct 4-digit code before the profile activates. The PIN itself is stored separately in the profile-scoped DataStore and is never transmitted to the cloud in plaintext.
+
+## Account sign-in (Nuvio account)
+
+Linking the device to a Nuvio account enables cloud sync for watch progress and library data across all devices signed into the same account.
+
+Sign-in uses a QR-code flow designed for TV:
+
+1. Open **Settings → Account → Sign in**.
+2. A QR code appears. Scan it with your phone — it opens a sign-in page in your browser.
+3. Sign in (or create an account) on your phone.
+4. The TV polls `poll_tv_login_session` until the browser session is confirmed, then calls `exchange_tv_login_session` to import the Supabase auth token.
+5. `AuthManager` observes `SessionStatus.Authenticated` and transitions `authState` to `AuthState.FullAccount`.
+
+The underlying auth is Supabase-backed. `AuthManager` handles JWT expiry by refreshing the session automatically; transient network failures are distinguished from invalid-session errors so the user is not logged out unnecessarily.
+
+## Sync code (device linking without full account)
+
+Devices can be linked without each device signing in independently using a sync code:
+
+- `SyncCodeGenerateScreen` — generates a short code on the source device.
+- `SyncCodeClaimScreen` — the target device enters the code to link itself to the same sync owner.
+
+Once linked, both devices share the same effective user ID (resolved via the `get_sync_owner` Supabase RPC), so their cloud library data merges automatically.
+
+## Account data reset on sign-out
+
+`AccountLocalDataResetService.clearAfterSignOut()` is called whenever the user explicitly signs out or when an unexpected session invalidation is detected. It clears:
+
+- Profile metadata (`ProfileDataStore.clearAll()`)
+- Profile lock states (`ProfileLockStateDataStore.clearAll()`)
+- All profile-scoped DataStore files (identified by the `_p{id}.preferences_pb` suffix)
+- Plugin code directories
+- Android TV channel data
+- Continue Watching enrichment cache
+
+Local data that is not account-linked (device player preferences, aspect ratio settings) is retained.
+
+## Profile data isolation
+
+`ProfileManager` uses `ProfileDataStoreFactory` to scope every DataStore to the active profile ID. When a profile is deleted, `ProfileManager.deleteProfile()` calls `factory.clearProfile(profileId)` and recursively deletes the corresponding `_p{id}.preferences_pb` files and plugin code directory from the filesystem. The primary profile (id = 1) cannot be deleted.

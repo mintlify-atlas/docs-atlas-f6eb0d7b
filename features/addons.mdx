@@ -1,0 +1,125 @@
+---
+title: "Installing and Managing Stremio Addons in NuvioTV"
+sidebarTitle: "Addons"
+description: "NuvioTV uses Stremio-compatible addons to provide catalogs and stream sources. Learn how to install addons by URL, manage them from your phone, and understand the addon manifest format."
+---
+
+Addons are the content engine of NuvioTV. Every row on your Home screen comes from an addon catalog, every piece of metadata is fetched from an addon, and every stream URL is provided by an addon. Without at least one installed and enabled addon, the Home screen will be empty.
+
+<Note>
+  You need at least one addon with a non-search-only catalog installed and enabled before content rows appear on the Home screen.
+</Note>
+
+## What addons do
+
+Each addon serves one or more of three roles:
+
+- **Catalog** — provides lists of movies and series that appear as rows on the Home screen and in search results.
+- **Metadata** — returns detailed information (description, cast, ratings, episode lists) for a given title.
+- **Streams** — returns playable stream URLs for a movie or episode when you press Play.
+
+A single addon can provide all three resources, or only a subset. The `resources` field in the manifest declares what each addon offers.
+
+## Addon manifest format
+
+An addon is described by a `manifest.json` file hosted at a stable URL. NuvioTV fetches this file when you install an addon and again on each scheduled refresh. The `Addon` data class mirrors the manifest fields directly:
+
+```kotlin
+data class Addon(
+    val id: String,                        // Globally unique reverse-domain identifier
+    val name: String,                      // Short display name
+    val displayName: String,               // Overrides name in the UI if set
+    val version: String,                   // SemVer string, shown in the addon card
+    val description: String?,             // One-line description shown in the addon card
+    val logo: String?,                     // Logo image URL
+    val background: String?,              // Optional background artwork URL
+    val baseUrl: String,                   // Root URL — manifest lives at baseUrl/manifest.json
+    val catalogs: List<CatalogDescriptor>, // Content rows this addon provides
+    val types: List<ContentType>,          // "movie", "series", etc.
+    val resources: List<AddonResource>,    // Declared capabilities: catalog, meta, stream, subtitles
+    val idPrefixes: List<String>,          // ID namespaces this addon can resolve (e.g. "tt" for IMDb)
+    val behaviorHints: AddonBehaviorHints?,// configurable, configurationRequired, newEpisodeNotifications
+    val enabled: Boolean                   // Toggled by the user; disabled addons are skipped
+)
+```
+
+Each `CatalogDescriptor` describes a single content row: its content type, a unique `id`, a human-readable `name`, and optional `extra` parameters (such as `genre` filters or a required `search` parameter). Catalogs that require a `search` extra are search-only and never appear on the Home screen.
+
+A typical manifest URL looks like this:
+
+```
+https://example-addon.com/manifest.json
+```
+
+NuvioTV also accepts the Stremio deep-link scheme and normalises it automatically:
+
+```
+stremio://example-addon.com/manifest.json
+```
+
+Both forms are treated identically. The `/manifest.json` suffix is optional — NuvioTV appends it when constructing API requests.
+
+## Installing addons
+
+<Tabs>
+  <Tab title="Manual URL">
+    1. Open **Settings → Add-ons** on your TV.
+    2. Select the URL input field and enter the addon's manifest URL.
+    3. Press the **Install** button (or confirm with the keyboard's Done action).
+
+    NuvioTV fetches the manifest, validates it, and adds the addon to your installed list. A brief toast confirms success or shows the error message if the URL was unreachable or returned an invalid manifest.
+
+    ```
+    https://community-addon.example.com/stremio/manifest.json
+    ```
+  </Tab>
+  <Tab title="Phone QR Code">
+    1. Open **Settings → Add-ons** on your TV.
+    2. Select **Manage from phone** — a QR code appears on screen.
+    3. Scan the QR code with your phone's camera or a QR reader app.
+    4. The NuvioTV web configuration UI opens in your phone's browser.
+    5. Make your changes (install addons, reorder catalogs, edit collections).
+    6. Tap **Apply** in the browser — a confirmation dialog appears on the TV.
+    7. Confirm on the TV to apply the changes.
+
+    The web UI that opens on your phone depends on the active experience mode and profile:
+
+    | Condition | Web config mode |
+    |---|---|
+    | Advanced mode, primary profile (or profile with own addons) | `FULL` — install/remove addons, reorder catalogs, manage collections |
+    | Essential mode, primary profile | `ADDONS_ONLY` — install/remove addons only |
+    | Secondary profile using primary profile's addons | `COLLECTIONS_ONLY` — manage collections only |
+  </Tab>
+</Tabs>
+
+## Managing installed addons
+
+The **Add-ons** screen lists every installed addon. For each addon you can:
+
+- **Enable / Disable** — toggle the switch to include or exclude the addon from catalog and stream queries. Disabled addons remain installed but are completely skipped.
+- **Remove** — permanently removes the addon from the installed list.
+- **Reorder** — move an addon up or down in the list using the arrow buttons. The order here controls the default ordering of catalog rows on the Home screen. *(Advanced mode only.)*
+
+## Catalog order
+
+The **Catalog Order** entry (Advanced mode only, shown only when at least one home-visible catalog exists) opens a dedicated screen where you can drag individual catalog rows into any order you want, independently of the addon order. Catalogs from different addons can be freely interleaved.
+
+## Collections
+
+Collections (Advanced mode only) let you group catalog rows into named folders that appear on the Home screen as a single tile. Each collection can contain catalog rows from multiple addons, TMDB lists, or Trakt public lists as sources. Collections are managed from the **Collections** entry in the Add-ons screen, or through the phone web UI in `FULL` or `COLLECTIONS_ONLY` mode.
+
+## Essential vs Advanced mode
+
+NuvioTV ships with two experience modes. The table below shows what each mode exposes in the Add-ons screen:
+
+| Feature | Essential | Advanced |
+|---|---|---|
+| Install by URL | ✅ | ✅ |
+| Manage from phone (QR) | ✅ (`ADDONS_ONLY`) | ✅ (`FULL`) |
+| Enable / Disable addons | ✅ | ✅ |
+| Remove addons | ✅ | ✅ |
+| Reorder addons | ❌ | ✅ |
+| Catalog Order screen | ❌ | ✅ |
+| Collections screen | ❌ | ✅ |
+
+You can switch experience modes in **Settings → Experience**.

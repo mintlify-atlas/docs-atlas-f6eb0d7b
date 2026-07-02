@@ -1,0 +1,188 @@
+---
+title: "Subtitle and Audio Configuration in NuvioTV"
+sidebarTitle: "Subtitles & Audio"
+description: "Configure preferred subtitle and audio languages, subtitle rendering with libass, font size, colors, timing offset, and hardware decoder priority in NuvioTV."
+---
+
+NuvioTV gives you granular control over both subtitle rendering and audio output. Subtitle settings live in `PlaybackSubtitleSettings.kt` and are backed by the `subtitleStyle` object inside `PlayerSettings`. Audio settings live in `PlaybackAudioSettings.kt`. Both sections are accessible in **Settings → Playback** in Advanced mode; Essential mode surfaces a minimal subset for quick setup.
+
+<Tabs>
+  <Tab title="Subtitles">
+    ## Subtitle Settings
+
+    ### Preferred Subtitle Language
+
+    **Essential + Advanced.** Selects the language NuvioTV tries to activate automatically when a stream loads. The value is a BCP-47 language code or the special string `"none"` to disable subtitles by default.
+
+    Set via `viewModel.setSubtitlePreferredLanguage(language)`. Displayed using `AVAILABLE_SUBTITLE_LANGUAGES` sorted by display name.
+
+    ### Secondary Subtitle Language
+
+    **Advanced only.** A fallback language used when the preferred language track is not available. Set via `viewModel.setSubtitleSecondaryLanguage(language)`.
+
+    ### Forced Subtitles
+
+    **Essential + Advanced.** When `useForcedSubtitles` is enabled, only tracks flagged as forced (typically foreign-language segments) are shown automatically. Useful for watching content where subtitles appear only for non-primary-language dialogue.
+
+    ### Show Only Preferred Languages
+
+    **Advanced only.** When enabled (`subtitleStyle.showOnlyPreferredLanguages`), the subtitle selector in the player filters out tracks that do not match the preferred or secondary language. Useful for content with many subtitle tracks.
+
+    ### Subtitle Startup Mode
+
+    **Advanced only.** Controls which subtitle tracks are loaded and active when a stream starts. The `AddonSubtitleStartupMode` enum values are surfaced as a single-choice dialog:
+
+    ```kotlin
+    // Values from AddonSubtitleStartupMode, displayed in PlaybackSubtitleSettings
+    subtitleStartupModeLabel(playerSettings.addonSubtitleStartupMode)
+    ```
+
+    The default is **All subtitles** (loads all available tracks). Other modes restrict which tracks are fetched from add-ons at startup.
+
+    ### Subtitle Size
+
+    **Essential + Advanced.** A percentage slider from 50% to 200% in steps of 10. Stored as `subtitleStyle.size`. Displayed in the player using the active renderer.
+
+    ```kotlin
+    SliderSettingsItem(
+        minValue = 50,
+        maxValue = 200,
+        step = 10,
+        value = playerSettings.subtitleStyle.size
+    )
+    ```
+
+    ### Subtitle Vertical Offset
+
+    **Advanced only.** Moves subtitles up or down relative to their default position. Range: −20 to +50, step 1. Stored as `subtitleStyle.verticalOffset`.
+
+    ### Subtitle Style: Colors, Bold, and Outline
+
+    **Advanced only.** These settings control the visual appearance of subtitle text:
+
+    | Setting | Type | Description |
+    |---|---|---|
+    | `subtitleStyle.textColor` | Color (ARGB) | Foreground text color; supports transparency via alpha slider |
+    | `subtitleStyle.backgroundColor` | Color (ARGB) | Box background behind text; Transparent is a valid option |
+    | `subtitleStyle.bold` | Boolean | Renders subtitle text in bold weight |
+    | `subtitleStyle.outlineEnabled` | Boolean | Enables a colored outline around text characters |
+    | `subtitleStyle.outlineColor` | Color (ARGB) | Color of the outline when enabled |
+
+    Available presets for text color include White, Light Grey, Yellow, Cyan, Green, Magenta, Red-Orange, Orange, and Light Green. Background presets include Transparent, Black, 50% Black, Dark Grey, and Medium Grey. Outline presets include Black, Dark Grey, Medium Grey, and White.
+
+    ### libass Subtitle Renderer
+
+    **Advanced only.**
+
+    <Tip>
+    libass is strongly recommended for anime content or any `.ass`/`.ssa` subtitle files. These formats use complex per-line positioning, karaoke effects, and custom fonts that the platform's built-in subtitle renderer does not support correctly. Enable libass whenever subtitles appear misaligned or unstyled.
+    </Tip>
+
+    `useLibass` enables the native libass renderer, which is bundled with NuvioTV (not a system dependency). When enabled, a render type must also be selected:
+
+    | `LibassRenderType` | Description |
+    |---|---|
+    | `OVERLAY_OPEN_GL` | Renders subtitles via an OpenGL overlay; best performance on modern hardware |
+    | `OVERLAY_CANVAS` | Renders subtitles via a Canvas overlay; more compatible but may be slower |
+
+    Set via:
+    ```kotlin
+    viewModel.setUseLibass(enabled)
+    viewModel.setLibassRenderType(renderType)
+    ```
+
+    ### Subtitle Timing Offset
+
+    **Player UI (both modes).** A per-session subtitle delay can be adjusted directly from the player's subtitle side panel (`SubtitleStyleSidePanel`). This is a runtime offset and is not persisted to `PlayerSettings` unless the user saves it. The underlying delay configuration is managed by `SubtitleDelayConfig`.
+  </Tab>
+  <Tab title="Audio">
+    ## Audio Settings
+
+    ### Preferred Audio Language
+
+    **Essential + Advanced.** Selects the audio track language NuvioTV activates at stream start. The field accepts:
+
+    - A BCP-47 language code (e.g., `"en"`, `"ja"`)
+    - `AudioLanguageOption.DEFAULT` — use the stream's default track
+    - `AudioLanguageOption.DEVICE` — match the device locale
+    - `AudioLanguageOption.ORIGINAL` — prefer the original production language
+
+    Set via `viewModel.setPreferredAudioLanguage(language)`.
+
+    ### Secondary Audio Language
+
+    **Advanced only.** Fallback language when the preferred audio track is unavailable. Set via `viewModel.setSecondaryPreferredAudioLanguage(language)`.
+
+    ### Decoder Priority
+
+    **Advanced only.** Controls whether NuvioTV prefers the device's hardware decoder or ExoPlayer's software decoder. The value is an integer index:
+
+    | Value | Label |
+    |---|---|
+    | `0` | Device only (hardware decoder required; falls back to no audio if unavailable) |
+    | `1` | Prefer device (hardware first, then software) |
+    | `2` | Prefer app (software first, then hardware) |
+
+    Set via `viewModel.setDecoderPriority(priority)`. Note: Force optical passthrough is disabled when decoder priority is 0.
+
+    ### Skip Silence
+
+    **Advanced only. ExoPlayer engine only.** When `skipSilence` is `true`, ExoPlayer automatically trims periods of silence from the audio timeline. Useful for podcasts or talk content. Not available when MPV is the active engine.
+
+    ### Audio Downmix
+
+    **Advanced only. ExoPlayer engine only.** `downmixEnabled` forces multi-channel audio to be mixed down to a configurable channel count. When enabled:
+
+    - **Output channels** (`AudioOutputChannels`): sets the target channel layout (e.g., Stereo, 5.1).
+    - **Maintain original audio on downmix** (`maintainOriginalAudioOnDownmix`): preserves the original loudness level rather than normalizing after downmix.
+
+    ### Tunneling
+
+    **Advanced only. ExoPlayer engine only.** `tunnelingEnabled` enables Android TV's tunneled playback path. Tunneling bypasses the audio framework and routes PCM/compressed audio directly to the output device, which can improve A/V sync accuracy and enable hardware-accelerated decode on certain SoCs. Requires device support.
+
+    ### Force Optical Passthrough
+
+    **Advanced only.** When `forceOpticalPassthrough` is `true`, NuvioTV forces bitstream passthrough over S/PDIF optical output. Only effective when decoder priority is not set to **Device only** (`decoderPriority != 0`).
+
+    ### Dolby Vision P7 Fallback Profile
+
+    **Advanced only. ExoPlayer engine only.** The `Dv7HandlingMode` enum controls how Dolby Vision Profile 7 streams are processed on devices that do not have a DV7 display pipeline:
+
+    | Mode | Description |
+    |---|---|
+    | `AUTO` | App decides based on device capabilities |
+    | `HDR10_BASE_LAYER` | Decodes only the HDR10 base layer |
+    | `DV81_LIBDOVI` | Converts to DV 8.1 using libdovi |
+    | `STRIP_DV` | Strips the enhancement layer entirely |
+    | `OFF` | No special handling; pass DV7 to the decoder as-is |
+
+    Related: `dv5ToDv81Enabled` converts DV5 streams to DV 8.1, and `dv7ToDv81PreserveMappingEnabled` preserves the color mapping during that conversion.
+
+    ### MPV Hardware Decode Mode
+
+    **Advanced only. MPV engine only.** When the MPV engine is active, `MpvHardwareDecodeMode` controls the hardware acceleration method MPV uses. This setting is only meaningful when `internalPlayerEngine` is `MVP_PLAYER` or `AUTO`.
+
+    ### Audio Delay
+
+    **Player UI (both modes).** An audio delay offset can be adjusted at runtime from the player controls via `AudioDelayMediaSource` and `GainAudioProcessor`. This offset is session-scoped. When `rememberAudioDelayPerDevice` is `true` (Advanced), the delay value is persisted per output device so it is automatically re-applied on the same TV or audio receiver.
+
+    ### Audio Output Route Detection
+
+    `AudioOutputRouteDetector` monitors the active audio output route (built-in speakers, HDMI, optical, Bluetooth) and can surface this information in diagnostics. This is used internally by the player to decide whether passthrough is viable.
+  </Tab>
+</Tabs>
+
+## Essential Mode Surface
+
+In Essential mode, `EssentialPlaybackSettingsContent` shows a **Subtitles and Audio** group with the following rows:
+
+- Preferred subtitle language (opens `LanguageSelectionDialog` with a None option)
+- Use forced subtitles toggle
+- Preferred audio language (opens `LanguageSelectionDialog` with Default, Device, and Original options)
+- Decoder priority (opens `DecoderPriorityDialog`)
+
+All other subtitle and audio settings on this page are hidden until the user switches to Advanced mode.
+
+## Advanced Mode Surface
+
+In Advanced mode, `PlaybackSettingsSections` renders the full **Subtitles** and **Audio & Video** collapsible sections within `PlaybackSettingsScreen`. Both sections are collapsed by default and can be expanded independently. The player also exposes a `SubtitleStyleSidePanel` for live subtitle style adjustment without leaving playback.

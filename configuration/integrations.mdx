@@ -1,0 +1,177 @@
+---
+title: "Third-Party Integrations: Trakt, TMDB, MDBList, and Anime-Skip"
+sidebarTitle: "Integrations"
+description: "Connect NuvioTV to Trakt for scrobbling, TMDB for metadata, MDBList for ratings, and Anime-Skip for automatic intro detection. Configuration reference for all integrations."
+---
+
+NuvioTV can connect to several third-party services to enrich metadata, surface ratings, scrobble watch progress, and detect content segments automatically. All four integrations are configured from **Settings → Integration** in Advanced mode. TMDB, MDBList, and Anime-Skip are hidden in Essential mode; Trakt has limited visibility in Essential.
+
+<Note>
+TMDB, MDBList, and Anime-Skip settings are only accessible in **Advanced mode**. Their defaults remain active in Essential mode — TMDB metadata and images continue to be fetched, but you cannot override the API key or tune behavior until you switch to Advanced.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="Trakt" icon="film" href="#trakt">
+    Scrobble watch progress, sync history, and import Trakt lists into your Library.
+  </Card>
+  <Card title="TMDB" icon="image" href="#tmdb">
+    Poster and backdrop images, metadata enrichment, and cast info. Override the API key for higher rate limits.
+  </Card>
+  <Card title="MDBList" icon="star" href="#mdblist">
+    Overlay additional ratings from IMDb, Trakt, Letterboxd, Rotten Tomatoes, and more on detail pages.
+  </Card>
+  <Card title="Anime-Skip" icon="forward" href="#anime-skip">
+    Automatic intro and outro skip detection for anime content using content fingerprinting.
+  </Card>
+</CardGroup>
+
+---
+
+## Trakt
+
+Trakt is a watch-tracking service. When connected, NuvioTV scrobbles playback progress to your Trakt account, syncs watched history bidirectionally, and can use your Trakt lists as a Library source.
+
+### What Trakt Enables
+
+- **Progress scrobbling**: playback position and completion events are sent to Trakt automatically.
+- **Watch history sync**: items marked watched on Trakt appear as watched in NuvioTV's Continue Watching.
+- **Library source**: your Trakt history, watchlist, and public lists can be imported as Library rows (`LibrarySourceMode.TRAKT`).
+- **Comment reviews** (`TraktCommentReview`): user comments and reviews from Trakt are shown on detail pages.
+- **Public list import** (`TraktPublicListSourceResolver`): any public Trakt list URL can be added as a catalog source.
+- **More Like This source**: Trakt or TMDB can be used as the recommendation engine on detail pages (`MoreLikeThisSourcePreference`).
+
+### Connecting via OAuth Device Flow
+
+Trakt uses the OAuth device code flow. NuvioTV generates a device code and polls the Trakt API until you authorize the code in a browser. The QR code for `https://trakt.tv/activate/{code}` is generated via `QrCodeGenerator` and displayed on-screen alongside the user code.
+
+<Steps>
+  <Step title="Open Trakt Settings">
+    Navigate to **Settings → Trakt** from the Advanced settings rail.
+  </Step>
+  <Step title="Initiate the Device Flow">
+    The Trakt screen starts in the disconnected state. Select **Connect** to generate a device code. A QR code and a short alphanumeric user code appear on screen.
+  </Step>
+  <Step title="Authorize on a Phone or Computer">
+    On any device, open `https://trakt.tv/activate` and enter the user code shown on your TV, or scan the QR code directly. Sign in with your Trakt account if needed.
+  </Step>
+  <Step title="Wait for Approval">
+    NuvioTV polls the Trakt API in the background. A countdown timer shows when the code expires. The screen transitions to the connected state automatically once authorization succeeds.
+  </Step>
+  <Step title="Confirm Connection">
+    When connected, the screen shows your Trakt username in green and the `TraktConnectionMode.CONNECTED` state. Disconnect at any time via the **Disconnect** button (with a confirmation dialog).
+  </Step>
+</Steps>
+
+### Advanced Trakt Settings
+
+These options are **Advanced mode only** and appear after a successful connection:
+
+| Setting | Description |
+|---|---|
+| Watch progress source (`WatchProgressSource`) | Use `TRAKT` progress or `NUVIO_SYNC` local progress for Continue Watching |
+| Library source (`LibrarySourceMode`) | Use Trakt history as the Library source (`TRAKT`) or local-only (`LOCAL`) |
+| Continue Watching window | Cap the history window to 14, 30, 60, 90, 180, or 365 days, or show all history |
+| Comments enabled | Toggle whether Trakt comment reviews appear on detail pages |
+| More Like This source (`MoreLikeThisSourcePreference`) | `TRAKT` or `TMDB` for the recommendation engine |
+
+---
+
+## TMDB
+
+The Movie Database (TMDB) is NuvioTV's primary source for poster images, backdrop art, metadata enrichment, and cast information.
+
+### What TMDB Provides
+
+- Poster and backdrop images for movies and TV shows.
+- Metadata: titles, overviews, genres, release dates, runtime.
+- Cast and crew credits.
+- Modern Home row artwork enrichment.
+- Continue Watching card enrichment.
+
+### Configuration
+
+`TmdbSettingsScreen` exposes the following settings in Advanced mode:
+
+| Setting | Description |
+|---|---|
+| `enabled` | Master toggle; disabling stops all TMDB fetches |
+| `modernHomeEnabled` | Use TMDB artwork in the Modern home layout |
+| `enrichContinueWatching` | Fetch TMDB metadata for Continue Watching cards |
+| `language` | Preferred metadata language from `AVAILABLE_TMDB_LANGUAGES` |
+| `useArtwork` | Fetch poster/backdrop images from TMDB |
+
+Additional metadata toggles include basic info, cast display, ratings, and more, all individually enabling or disabling TMDB data types.
+
+**Default API access:** NuvioTV includes built-in TMDB API access. You can override this with a personal TMDB API key for higher rate limits. Enter your key in **Settings → Integration → TMDB → API Key**. Personal keys are subject to TMDB's standard rate limits per their developer agreement.
+
+---
+
+## MDBList
+
+MDBList is a third-party aggregator that provides additional ratings from multiple sources in a single API call. NuvioTV uses MDBList to display a ratings overlay on detail pages.
+
+### What MDBList Provides
+
+MDBList overlays individual score rows sourced from:
+
+| Source | Toggle |
+|---|---|
+| IMDb | `showImdb` |
+| Trakt | `showTrakt` |
+| TMDB | `showTmdb` |
+| Letterboxd | `showLetterboxd` |
+| Rotten Tomatoes | `showTomatoes` |
+
+Each source can be independently enabled or disabled. The combined result is stored in the `MDBListRatings` domain model.
+
+### Configuration
+
+MDBList requires a **personal API key** from [mdblist.com](https://mdblist.com). NuvioTV does not bundle a shared MDBList key.
+
+1. Create a free account at mdblist.com and copy your API key from the account dashboard.
+2. In NuvioTV, navigate to **Settings → Integration → MDBList** (Advanced mode only).
+3. Enable MDBList (`mdblist_enabled` toggle).
+4. Enter your API key. The key is masked after entry (`maskApiKey()`).
+5. Toggle which rating sources you want displayed.
+
+The `MDBListSettings` domain model stores the key and per-source preferences. This entire settings screen is hidden in Essential mode.
+
+---
+
+## Anime-Skip
+
+Anime-Skip provides automatic intro, outro, and transition segment detection for anime content. When a matching segment is detected, a skip button appears in the NuvioTV player.
+
+### How It Works
+
+NuvioTV sends content fingerprint data to the Anime-Skip API, which returns timed segment data (intro start/end, outro start/end, etc.) for the current episode. This data is used to:
+
+- Show a **Skip Intro** button in the player when the playhead enters a detected segment.
+- Optionally auto-skip segments when `autoSkipSegmentType` toggles are enabled in Advanced playback settings.
+
+The skip button is powered by the same `skipIntroEnabled` flag in playback settings. Anime-Skip segment data augments what the button reacts to; the button itself is a core player feature visible in both modes.
+
+### Configuration
+
+Anime-Skip requires a **client ID** obtained from [anime-skip.com](https://anime-skip.com). The client ID authenticates API requests from your installation.
+
+1. Register a client application at anime-skip.com to obtain a client ID.
+2. In NuvioTV, navigate to **Settings → Integration → Anime-Skip** (Advanced mode only).
+3. Enable Anime-Skip (`animeskip_enabled` toggle).
+4. Enter your client ID via the **Client ID** row. The value is masked after entry (`maskClientId()`).
+5. NuvioTV validates the client ID against the Anime-Skip API before saving. An invalid ID shows a toast error.
+
+The `AnimeSkipSettingsContent` composable manages this flow. The client ID and enabled state are stored separately:
+
+```kotlin
+val clientId by viewModel.clientId.collectAsStateWithLifecycle()
+val enabled by viewModel.enabled.collectAsStateWithLifecycle()
+```
+
+This entire settings screen is hidden in Essential mode. The skip button still appears in Essential mode if a valid client ID was previously configured in Advanced mode.
+
+---
+
+## Debrid Services
+
+Real-Debrid, Premiumize, Torbox, and other debrid providers are configured separately under **Settings → Integration → Debrid**. Debrid settings include device-code OAuth flows per provider, stream preference filters (quality, encode, audio channels, visual tags), and sort order configuration. See the [Debrid guide](/features/debrid) for the full reference.

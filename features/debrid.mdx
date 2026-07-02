@@ -1,0 +1,90 @@
+---
+title: "Debrid Service Integration for Instant Stream Resolution"
+sidebarTitle: "Debrid"
+description: "NuvioTV integrates with Torbox, Premiumize, and Real-Debrid to resolve torrent streams into direct HTTP links for instant-speed playback without seeding."
+---
+
+Debrid services maintain large caches of torrents on high-speed servers. When a stream addon returns a torrent info-hash, NuvioTV checks whether that torrent is already cached on your debrid service and, if so, resolves it to a direct HTTP link that plays instantly at the server's full bandwidth — no seeding, no client-side torrenting.
+
+## Supported providers
+
+NuvioTV ships with three registered providers in the `DebridProviders` object:
+
+| Provider | ID | Short name | Auth method | Visible in UI |
+|---|---|---|---|---|
+| Torbox | `torbox` | TB | Device code (OAuth) | ✅ |
+| Premiumize | `premiumize` | PM | Device code (OAuth) | ✅ |
+| Real-Debrid | `realdebrid` | RD | API key | ❌ (hidden by default) |
+
+### Provider capabilities
+
+Each provider declares a set of `DebridProviderCapability` flags that control which resolution paths NuvioTV uses:
+
+| Capability | Torbox | Premiumize | Real-Debrid | Meaning |
+|---|---|---|---|---|
+| `ClientResolve` | ✅ | ✅ | ✅ | Can resolve a debrid-annotated stream (info-hash + service tag) to an HTTP link |
+| `LocalTorrentCacheCheck` | ✅ | ✅ | ❌ | Can check whether a raw torrent info-hash is cached before resolving |
+| `LocalTorrentResolve` | ✅ | ✅ | ❌ | Can resolve a raw torrent magnet/info-hash to an HTTP link without a pre-annotated stream |
+| `CloudLibrary` | ✅ | ✅ | ❌ | Exposes a browsable cloud file library (see [Library](/features/library)) |
+
+## Authentication
+
+### Device code (OAuth) — Torbox and Premiumize
+
+The device-code flow is designed for TV interfaces where typing a password is awkward.
+
+<Steps>
+  <Step title="Open debrid settings">
+    Go to **Settings → Debrid** and select Torbox or Premiumize.
+  </Step>
+  <Step title="Start authentication">
+    Select **Sign in**. NuvioTV calls the provider's device authorisation endpoint and receives a `DebridDeviceAuthorization` containing a `userCode` and a `verificationUrl`.
+  </Step>
+  <Step title="Visit the URL on another device">
+    On your phone or computer, navigate to the `verificationUrl` shown on screen (e.g. `https://torbox.app/activate`).
+  </Step>
+  <Step title="Enter the user code">
+    Type the `userCode` displayed on your TV into the provider's website and approve the request.
+  </Step>
+  <Step title="Automatic completion">
+    NuvioTV polls the provider at the `intervalSeconds` cadence. When it receives a `DebridDeviceAuthorizationTokenResult.Authorized` response containing the access token, authentication completes and the token is stored locally.
+  </Step>
+</Steps>
+
+### API key — Real-Debrid
+
+Real-Debrid uses `DebridProviderAuthMethod.ApiKey`. Paste your Real-Debrid API key directly into the field in **Settings → Debrid → Real-Debrid**. Because `visibleInUi = false`, Real-Debrid does not appear in the normal settings UI and must be added by advanced users who know the provider ID.
+
+## Resolution flow
+
+When the stream list loads, NuvioTV checks each stream that carries a `clientResolve` annotation or a raw torrent info-hash:
+
+1. **Cache status check** (`StreamDebridCacheState`):
+   - `CHECKING` — NuvioTV is actively querying the provider.
+   - `CACHED` — the torrent is confirmed cached; resolution will succeed instantly.
+   - `NOT_CACHED` — the torrent is not cached; the stream is filtered from the visible list.
+   - `UNKNOWN` — cache state could not be determined; NuvioTV attempts resolution anyway.
+
+2. **`DirectDebridResolver.resolve()`** selects the correct per-provider resolver (`TorboxDirectDebridResolver`, `PremiumizeDirectDebridResolver`, or `RealDebridDirectDebridResolver`) based on `clientResolve.service` and the configured active resolver.
+
+3. On success, the stream's `url` field is replaced with the resolved HTTP link and the stream plays normally through ExoPlayer or MPV. Resolved links are cached in memory for 15 minutes (`DIRECT_DEBRID_RESOLVE_CACHE_TTL_MS`) to avoid redundant API calls.
+
+4. If the stream is a raw torrent (`needsLocalDebridResolve()` is true), `LocalTorrentResolve` capability is required. NuvioTV builds a magnet URI from the info-hash and resolves it through the active provider.
+
+### Preferred resolver
+
+When more than one debrid service is configured, `DebridProviders.preferredResolverService()` selects which one to use. The preferred provider ID is stored in `DebridSettings.preferredResolverProviderId`. If no preference is set, the first configured service is used.
+
+## File selection
+
+Some torrents contain multiple files (e.g. a season pack). In these cases, NuvioTV presents a file picker (`DebridFileSelection`) so you can choose which file to resolve. The `fileIdx` field in `StreamClientResolve` carries the selected file index to the resolver.
+
+## Stream formatting
+
+`DebridStreamFormatter` renders configurable name and description templates for debrid streams. Templates support variables such as `stream.resolution`, `stream.visualTags` (HDR, Dolby Vision, etc.), `stream.audioTags`, `stream.languages`, `stream.size`, `stream.encode`, `service.shortName` (`TB`, `PM`, `RD`), and `service.cached`. The formatted strings replace the raw addon-provided name and description in the stream list UI.
+
+`DebridStreamPresentation` applies post-processing to the full stream group list: it filters out streams from inactive resolvers and fully uncached torrents, then passes remaining debrid streams through `DebridStreamFormatter`.
+
+## Cloud library
+
+Torbox and Premiumize both support the `CloudLibrary` capability, which lets you browse all previously resolved files stored on your debrid account from within NuvioTV. See [Library](/features/library) for details.

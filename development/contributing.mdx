@@ -1,0 +1,133 @@
+---
+title: "Contributing to NuvioTV"
+sidebarTitle: "Contributing"
+description: "Contribution guidelines for NuvioTV: current PR policy, accepted work types (bug fixes, translations), bug report format, and how to submit a pull request."
+---
+
+Thanks for your interest in contributing to NuvioTV. The project has strict contribution rules that are enforced consistently — issues and pull requests that do not follow them will be closed without review. Read this page completely before opening anything.
+
+<Warning>
+  **Current PR policy is restrictive (as of 2026-05-23).** The team is focused on getting NuvioTV to a stable release. Until further notice, pull requests are accepted **only** for localization/translation updates and critical bug fixes with a linked issue, reproduction steps, and testing notes. Anything outside this scope — including feature requests, feature additions, UI changes, and refactors — will be closed or deferred without review. Currently open PRs are not automatically exempt.
+</Warning>
+
+---
+
+## What PRs Are Accepted
+
+Even outside the current freeze period, the project accepts only a narrow set of contribution types. The full list of accepted categories is:
+
+- **Reproducible bug fixes** for issues that are already documented in the issue tracker
+- **UI glitch fixes** for specific, visible bugs (broken layout, overlapping or clipped text, unreadable content, incorrect visual state, remote/focus navigation glitches, regressions from a previous version, or crashes caused by UI code) — must include before/after screenshots or a short video
+- **Behavior bug fixes** that restore the intended behavior without changing product direction — must include an explanation of old behavior, broken behavior, new behavior, and how it was tested
+- **Small maintenance work** that does not change UI, UX, behavior, dependencies, architecture, or public contracts
+- **Small documentation fixes** that improve accuracy
+- **Translation/localization updates**
+
+<Note>
+  Translation and localization PRs are always welcome and are not subject to the current freeze. They are accepted as long as they stay focused on translation work and do not bundle feature or UI changes.
+</Note>
+
+### What PRs Are NOT Accepted
+
+Pull requests are not accepted for:
+
+- New major features
+- Product direction or UX/UI redesigns
+- Cosmetic-only UI changes (colors, spacing, typography, icons, copy, layout, animations, visual style)
+- Behavior changes not tied to a reproducible bug or explicitly approved feature request
+- Refactors without a clear maintenance need
+- Dependency additions or architecture changes without prior approval
+
+---
+
+## Large Changes: Approval Required First
+
+Any change that is not a simple bug fix requires a Feature Request issue to be opened and explicitly approved by a maintainer **before** you write any code.
+
+<Steps>
+  <Step title="Open a Feature Request issue">
+    Describe the change you want to make. Include the problem you are solving, your proposed solution, and any alternatives you considered (see [Feature Request Format](#feature-request-format) below).
+  </Step>
+  <Step title="Wait for explicit maintainer approval">
+    A maintainer must clearly state that the implementation is approved. A feature request being open, popular, or labeled `enhancement` is **not** approval.
+  </Step>
+  <Step title="Link the approved issue in your PR">
+    When you open the pull request, include a link to the approved feature request issue. PRs without this link will be closed immediately without review — no exceptions.
+  </Step>
+</Steps>
+
+This applies to: UI changes, behavior changes, new features, architecture changes, dependency additions, large refactors, migrations, and any change that affects product direction.
+
+---
+
+## Bug Report Format
+
+Bug reports must include all of the following. Missing fields will delay or block action on the issue.
+
+- **Short, specific title** — describes the bug, not just `[Bug]:` as a placeholder
+- **App version** — the release version string (e.g. `0.7.13-beta`) or the commit hash if building from source
+- **Platform + device model + Android version** — e.g. `NVIDIA Shield Pro · Android 11`
+- **Install method** — release APK, CI build, or built from source
+- **Steps to reproduce** — exact, numbered steps starting from the app launch state
+- **Expected vs. actual behavior** — what should happen, and what actually happens
+- **Frequency** — always / sometimes / once
+
+**Logcat is required for crash and force-close reports.** Capture it immediately after reproducing the crash:
+
+```bash
+adb logcat -d | tail -n 300
+```
+
+Attach the output as a file or paste it inside a `<details>` block in the issue. For crashes, include the full stack trace from Android Studio's Logcat panel or from `adb logcat`.
+
+---
+
+## Feature Request Format
+
+Feature requests should include:
+
+- **The problem you are solving** — describe the use case, not just the solution
+- **Your proposed solution** — what you want the app to do
+- **Alternatives considered** — other approaches you thought about
+
+Opening a feature request does **not** mean a pull request will be accepted. If the feature affects product scope, UX direction, or adds a significant new surface area, do not start implementation until a maintainer explicitly approves it.
+
+---
+
+## Before Opening a PR
+
+<Accordion title="Pre-submission checklist">
+  Before submitting any pull request, confirm every item on this list:
+
+  - [ ] The PR is allowed by the current policy (localization, or critical bug fix during the current freeze)
+  - [ ] The PR is small in scope and focused on one problem
+  - [ ] The PR is clearly aligned with the current direction of the project
+  - [ ] The PR is **not** cosmetic-only
+  - [ ] The PR does **not** change behavior unless it fixes a linked bug or has explicit maintainer approval
+  - [ ] The PR does **not** change UI unless it fixes a linked glitch/bug **and** includes before/after screenshots or video
+  - [ ] The PR does **not** bundle refactors, cleanups, or drive-by changes with a bug fix
+  - [ ] The PR has been tested manually and/or automatically in a way that matches its risk level
+  - [ ] If the change is large, directional, or non-trivial, it links to an approved feature request issue
+  - [ ] The PR template is fully filled out — not left with placeholder text
+</Accordion>
+
+PRs will be closed without review if they:
+
+- Are cosmetic-only UI changes
+- Change behavior without a linked bug or approved feature request
+- Change UI without screenshots or video
+- Bundle unrelated changes
+- Leave the PR template incomplete
+- Add dependencies, architecture changes, or broad refactors without prior approval
+
+---
+
+## One Issue Per Problem
+
+Open separate issues for separate bugs or features. Combining multiple problems in a single issue makes tracking, fixing, and closing significantly harder. Duplicate issues that cover something already reported will be closed in favor of the original.
+
+---
+
+## Where to Ask Questions
+
+Use **GitHub Issues** for bugs, feature requests, setup help, and general support. There is no separate discussion forum — all project communication goes through Issues.

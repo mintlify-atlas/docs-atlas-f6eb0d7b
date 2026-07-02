@@ -1,72 +1,70 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "NuvioTV",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#40d0e9",
+    "light": "#b750f0",
+    "dark": "#ffffff"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
+  "favicon": "https://media.brand.dev/f2675816-cf1f-47ec-8b8e-c6eefef9c6f7.png",
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "https://media.brand.dev/49c308ee-7b73-4e23-b8ca-9c1b6a5da29c.png",
+    "dark": "https://media.brand.dev/49c308ee-7b73-4e23-b8ca-9c1b6a5da29c.png"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/NuvioMedia/NuvioTV"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/NuvioMedia/NuvioTV"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/addons",
+              "features/playback",
+              "features/debrid",
+              "features/library",
+              "features/profiles"
+            ]
+          },
+          {
+            "group": "Settings & Configuration",
+            "pages": [
+              "configuration/experience-modes",
+              "configuration/playback-settings",
+              "configuration/subtitle-audio",
+              "configuration/integrations"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/building",
+              "development/architecture",
+              "development/contributing"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

@@ -1,0 +1,82 @@
+---
+title: "NuvioTV: Android TV Media Player Powered by Stremio Addons"
+sidebarTitle: "Introduction"
+description: "NuvioTV is an open-source Android TV media player that integrates with the Stremio addon ecosystem for content discovery and stream resolution. Built with Kotlin and Jetpack Compose."
+---
+
+NuvioTV is a modern, open-source media player built specifically for Android TV. It acts as a **client-side playback interface** that integrates with the Stremio addon ecosystem, letting user-installed addons supply content catalogs and stream URLs while NuvioTV handles all playback. The app hosts nothing itself — every piece of content is resolved at runtime by the addons and services you configure.
+
+## How it works
+
+NuvioTV separates the concerns of **content discovery** and **playback** cleanly:
+
+1. **Addons** (installed by you) expose catalogs and resolve stream URLs from their own sources.
+2. **NuvioTV** fetches those catalogs, renders them on the Home screen, resolves streams on the detail page, and plays the resulting URLs through its internal player engine.
+
+Because NuvioTV is a pure client, there is no central server serving media. Swapping or removing addons immediately changes what appears in your library.
+
+## Technology stack
+
+NuvioTV is built with the following core technologies:
+
+| Layer | Technology |
+|---|---|
+| Language | Kotlin |
+| UI | Jetpack Compose + TV Material3 |
+| Playback | Forked ExoPlayer / Media3 engine + MPV (`mpv-android-lib`) |
+| Dependency injection | Hilt |
+| Networking | Retrofit + OkHttp + Moshi |
+| Backend sync | Supabase (auth, profiles, settings sync) |
+| Image loading | Coil 3 |
+| Navigation | Jetpack Navigation Compose |
+
+## Key capabilities
+
+**Stremio addon ecosystem** — Install any Stremio-compatible addon by pasting its `manifest.json` URL. Addons provide catalogs (movies, series, IPTV, etc.) and resolve stream links. The Add-on Manager includes a QR-code flow so you can manage addons from your phone's browser.
+
+**Debrid service integration** — NuvioTV has native resolvers for [Torbox](https://torbox.app), [Premiumize](https://www.premiumize.me), and [Real-Debrid](https://real-debrid.com). Torbox and Premiumize support device-code OAuth, local torrent cache checks, direct torrent resolving, and cloud library browsing. Configure them under **Settings → Debrid**.
+
+**Trakt scrobbling** — Automatic watch history scrobbling to [Trakt.tv](https://trakt.tv) as you watch. Tracks movies and episodes in real time via the Trakt API.
+
+**Multi-profile sync** — Create multiple viewer profiles backed by Supabase. Settings, watch history, and preferences sync across devices. Profiles can be PIN-protected and selected at launch.
+
+**Dolby Vision Profile 7 → 8.1 transcoding** — A native `dovi_bridge` C library converts DV7 RPU metadata on-the-fly so Dolby Vision Profile 7 content plays correctly on devices that only decode Profile 8.1. The conversion runs inside the custom Matroska extractor during demuxing.
+
+**Essential and Advanced experience modes** — First-time users choose a mode at setup. *Essential* surfaces add-ons, playback basics, Trakt, and account settings. *Advanced* unlocks the full settings surface: layout controls, catalog ordering, collections, plugins, and diagnostics. You can switch modes at any time from Settings.
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card
+    icon="download"
+    title="Installation"
+    href="/installation"
+  >
+    Download and sideload the APK on your Android TV device, or build from source.
+  </Card>
+  <Card
+    icon="bolt"
+    title="Quickstart"
+    href="/quickstart"
+  >
+    Go from a fresh install to streaming your first video in five steps.
+  </Card>
+  <Card
+    icon="puzzle-piece"
+    title="Addons"
+    href="/features/addons"
+  >
+    Learn how to install, manage, and order Stremio-compatible addons.
+  </Card>
+  <Card
+    icon="play"
+    title="Playback"
+    href="/features/playback"
+  >
+    Explore the player engine, Dolby Vision support, and debrid stream resolution.
+  </Card>
+</CardGroup>
+
+<Note>
+  NuvioTV is a **client-only** application. It does not host, store, or distribute any media content. It is intended for content you own or are otherwise authorized to access. NuvioTV is not affiliated with any third-party addons or content providers. For full legal information see the [Legal & Disclaimer page](https://nuvioapp.space/legal).
+</Note>

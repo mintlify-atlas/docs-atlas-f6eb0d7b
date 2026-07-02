@@ -1,0 +1,251 @@
+---
+title: "Building NuvioTV from Source"
+sidebarTitle: "Building"
+description: "Set up Android Studio, configure local.properties, and run debug or release builds of NuvioTV. Covers build variants, Dolby Vision native lib setup, and ADB deployment."
+---
+
+NuvioTV is a Kotlin-first Android TV application built with Gradle. This guide walks you through everything required to clone the repo, configure your local environment, and produce a working debug or release APK. Read the entire page before starting — several properties affect the native build system and must be set correctly.
+
+## Prerequisites
+
+Before cloning, confirm the following are installed and available on your `PATH`:
+
+| Requirement | Minimum version |
+|---|---|
+| Android Studio | Latest stable |
+| JDK | 11+ |
+| Android SDK | API 24 (minSdk) — API 36 (compileSdk / targetSdk) |
+| Gradle | 8.0+ (wrapper included in repo) |
+| NDK | 29.0.14206865 (set in `app/build.gradle.kts`) |
+
+The project uses Gradle's included wrapper (`./gradlew`), so you do not need a separate Gradle installation.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/NuvioMedia/NuvioTV.git
+    cd NuvioTV
+    ```
+  </Step>
+
+  <Step title="Copy the example properties file">
+    The build reads secrets from `local.properties` at the project root. The example file ships with safe placeholder values.
+
+    ```bash
+    cp local.example.properties local.properties
+    ```
+
+    Open `local.properties` and fill in the values described in the next section.
+  </Step>
+
+  <Step title="Open in Android Studio">
+    Open the cloned directory in Android Studio (**File → Open**). Android Studio will sync the Gradle project automatically. Let it finish before running any Gradle tasks.
+  </Step>
+
+  <Step title="Select a build variant">
+    In Android Studio, open the **Build Variants** panel and select `fullDebug` (GitHub release flavor) or `playstoreDebug` (restricted flavor). See [Build Variants](#build-variants) below for the difference.
+  </Step>
+
+  <Step title="Build and deploy">
+    Run a build from the terminal or the Android Studio **Run** button. See [Build Commands](#build-commands) below for the full set of Gradle tasks.
+  </Step>
+</Steps>
+
+---
+
+## local.properties Configuration
+
+All secrets and optional feature flags are supplied through `local.properties`. The file is **never committed** to source control. Below is a complete reference for every key defined in `local.example.properties` and `app/build.gradle.kts`.
+
+### Supabase Backend
+
+```properties
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
+AVATAR_PUBLIC_BASE_URL=your_supabase_avatar_public_base_url_here
+```
+
+These three keys configure the Supabase project used for authentication, profile sync, library sync, and avatar storage. The `SupabaseModule` Hilt provider injects them via `BuildConfig.SUPABASE_URL` and `BuildConfig.SUPABASE_ANON_KEY`.
+
+<Note>
+  Supabase keys are required only for account-dependent features: sign-in, multi-profile management, cloud library sync, and watch-progress sync. The app runs fully in local-only mode without them — addons, playback, and local watch progress all work without a Supabase connection.
+</Note>
+
+### Trakt OAuth
+
+```properties
+TRAKT_REDIRECT_URI=urn:ietf:wg:oauth:2.0:oob
+```
+
+The redirect URI used during Trakt OAuth device-code authentication. The default value (`urn:ietf:wg:oauth:2.0:oob`) is the correct out-of-band value for TV applications and should not need to change unless you are pointing at a custom Trakt application.
+
+### Premiumize OAuth
+
+```properties
+PREMIUMIZE_CLIENT_ID=
+```
+
+Your Premiumize application client ID, used for Premiumize debrid OAuth device flow. Leave blank to disable Premiumize integration at build time.
+
+### Playback Analytics Endpoint
+
+```properties
+PLAYBACK_REPORTS_BASE_URL=https://nuvio.tv/
+```
+
+Base URL for the `PlaybackIssueReportApi` Retrofit client. Defaults to `https://nuvio.tv/`. Set to an empty string or a local endpoint when developing without network access to the production server.
+
+### Contributor / Supporters Endpoint
+
+```properties
+UNIQUE_CONTRIBUTIONS_BASE_URL=
+```
+
+Base URL for the `UniqueContributionsApi` Retrofit client, used to display the contributors and supporters list in Settings. Leave blank to disable this feature.
+
+### Local FFmpeg Decoder
+
+```properties
+# Optional: set to true only if you want to build the local ffmpeg-decoder-downmix module
+USE_LOCAL_FFMPEG_DECODER=false
+# Required only when USE_LOCAL_FFMPEG_DECODER=true
+FFMPEG_SOURCE_DIR=path_to_ffmpeg_source_tree
+FFMPEG_BUILD_DIR=path_to_ffmpeg_build_root
+```
+
+When `USE_LOCAL_FFMPEG_DECODER=false` (the default), the build uses the prebuilt `libs/lib-decoder-ffmpeg-release.aar`. Setting it to `true` compiles the `:ffmpeg-decoder-downmix` Gradle module from source — this requires a full FFmpeg source tree and an out-of-tree build directory. Most contributors should leave this as `false`.
+
+### Dolby Vision Profile 7 Native Bridge
+
+```properties
+# Build the dovi_bridge native lib + load the runtime bridge.
+DOVI_NATIVE_ENABLED=true
+
+# Marks extractor hook integration as available in the current build.
+DOVI_EXTRACTOR_HOOK_READY=true
+
+# Link the prebuilt libdovi static archive into dovi_bridge.
+DOVI_ENABLE_REAL_LINK=true
+
+# Optional explicit overrides (otherwise resolved from the prebuilt root below):
+# DOVI_LIBDOVI_STATIC_LIB=/path/to/libdovi.a
+# DOVI_LIBDOWI_INCLUDE_DIR=/path/to/libdowi/include
+DOVI_LIBDOVI_PREBUILT_ROOT=DV7/libdowi
+```
+
+<Warning>
+  Dolby Vision native build is **optional and advanced**. It requires a prebuilt `libdowi` static archive (`.a`) built for Android ARM/ARM64. If you do not have the `DV7/libdowi` directory, set `DOVI_NATIVE_ENABLED=false`, `DOVI_EXTRACTOR_HOOK_READY=false`, and `DOVI_ENABLE_REAL_LINK=false` — the build will skip the CMake external native build step entirely and the app will fall back to software Dolby Vision handling. These flags are read by `app/build.gradle.kts` and passed as CMake arguments to `src/main/cpp/CMakeLists.txt`.
+</Warning>
+
+| Key | Purpose |
+|---|---|
+| `DOVI_NATIVE_ENABLED` | Enables the `dovi_bridge` native library and runtime bridge |
+| `DOVI_EXTRACTOR_HOOK_READY` | Marks extractor hook integration as active in `BuildConfig` |
+| `DOVI_ENABLE_REAL_LINK` | Links the prebuilt `libdowi.a` into `dovi_bridge` (vs. stub build) |
+| `DOVI_LIBDOWI_PREBUILT_ROOT` | Root path to the `DV7/libdowi` prebuilt tree — headers and `.a` are resolved from here |
+| `DOVI_LIBDOWI_STATIC_LIB` | Explicit override for the `.a` path (optional; takes precedence over prebuilt root) |
+| `DOVI_LIBDOWI_INCLUDE_DIR` | Explicit override for the include directory (optional) |
+
+---
+
+## Build Variants
+
+The `app` module defines a single flavor dimension named `distribution` with two product flavors:
+
+<Tabs>
+  <Tab title="full">
+    The **`full`** flavor is the GitHub Releases distribution. It enables every feature gate:
+
+    ```
+    FEATURE_PLUGINS_ENABLED      = true
+    FEATURE_IN_APP_UPDATES_ENABLED = true
+    FEATURE_IN_APP_TRAILERS_ENABLED = true
+    FEATURE_EXTERNAL_TRAILERS_ENABLED = true
+    ```
+
+    This flavor includes the `app/src/full/` source set, which provides:
+    - `AppFeaturePolicy` with all features enabled
+    - `PluginManager` and `PluginRuntime` for Cloudstream extension support
+    - `ExternalExtensionLoader` — loads Cloudstream plugins as side-loaded APKs via `DexClassLoader`
+    - In-app update checks via the GitHub Releases API (`GitHubReleaseApi`)
+
+    The debug application ID for this flavor is `com.nuviodebug.com`.
+  </Tab>
+  <Tab title="playstore">
+    The **`playstore`** flavor targets Play Store distribution. Feature gates are restricted:
+
+    ```
+    FEATURE_PLUGINS_ENABLED      = false
+    FEATURE_IN_APP_UPDATES_ENABLED = false
+    FEATURE_IN_APP_TRAILERS_ENABLED = false
+    FEATURE_EXTERNAL_TRAILERS_ENABLED = true
+    ```
+
+    The `playstore` source set provides stub implementations of `AppFeaturePolicy` with plugins and in-app updates disabled. The application ID is `com.nuvio.app` (release) or `com.nuvio.appdebug` (debug).
+  </Tab>
+</Tabs>
+
+Both flavors share the `main` source set and all core subsystems. The difference is purely in which feature gates are open and which source set provides `AppFeaturePolicy`.
+
+---
+
+## Build Commands
+
+All commands below should be run from the project root. The Gradle wrapper (`./gradlew`) is included and does not require a separate installation.
+
+### Kotlin Compilation Check
+
+Run this first to verify the Kotlin sources compile without producing an APK:
+
+```bash
+./gradlew :app:compileFullDebugKotlin
+```
+
+### Debug Builds
+
+```bash
+# Compile and package the full-flavor debug APK
+./gradlew :app:assembleFullDebug
+
+# Compile and package the playstore-flavor debug APK
+./gradlew :app:assemblePlaystoreDebug
+```
+
+### Release Builds
+
+```bash
+# Full-flavor release APK (requires signing config in local.properties or env vars)
+./gradlew :app:assembleFullRelease
+
+# Full-flavor release App Bundle
+./gradlew :app:bundleFullRelease
+```
+
+For release signing, set the following keys in `local.properties` or as environment variables:
+
+```properties
+NUVIO_RELEASE_STORE_FILE=/path/to/keystore.jks
+NUVIO_RELEASE_KEY_ALIAS=nuviotv
+NUVIO_RELEASE_KEY_PASSWORD=<your-key-password>
+NUVIO_RELEASE_STORE_PASSWORD=<your-store-password>
+```
+
+Environment variable equivalents: `NUVIO_RELEASE_STORE_FILE`, `NUVIO_RELEASE_KEY_ALIAS`, `NUVIO_RELEASE_KEY_PASSWORD`, `NUVIO_RELEASE_STORE_PASSWORD`.
+
+### Install and Launch on a Connected Device
+
+```bash
+# Install the full-flavor debug APK
+./gradlew :app:installFullDebug
+
+# Launch MainActivity directly via ADB
+adb shell am start -n com.nuviodebug.com/com.nuvio.tv.MainActivity
+```
+
+Make sure ADB is enabled on your Android TV device (**Settings → Device Preferences → Developer options → USB debugging** or **Network debugging**).
+
+---
+
+## ABI Splits
+
+The build is configured for per-ABI APK splits (`armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`) plus a universal APK. When building an App Bundle (`bundleFullRelease`), splits are disabled automatically and the bundle handles ABI selection. For development builds, the universal APK is the easiest target to install.

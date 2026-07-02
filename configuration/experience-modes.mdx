@@ -1,0 +1,207 @@
+---
+title: "Essential vs Advanced Mode: Choosing Your NuvioTV Experience"
+sidebarTitle: "Experience Modes"
+description: "NuvioTV offers Essential mode for simplified setup and Advanced mode for full control. Learn what each mode shows, how to switch, and how defaults are applied for new installs."
+---
+
+NuvioTV ships with two distinct experience modes that control which settings, customization surfaces, and integrations are visible in the app. The mode you choose does not restrict what the app can do — it only changes how much of the configuration surface is presented. You can switch modes at any time without losing any data.
+
+## The Two Modes
+
+The active mode is stored as an `ExperienceMode` enum defined in `com.nuvio.tv.domain.model`:
+
+```kotlin
+enum class ExperienceMode {
+    ESSENTIAL,
+    ADVANCED
+}
+```
+
+<Tabs>
+  <Tab title="Essential Mode">
+    **Essential mode** is designed for users who want a streamlined path from install to playback. It answers one question: *I just want NuvioTV to work with the least setup possible.*
+
+    Essential keeps:
+    - Home, Search, Library, Add-ons, and Settings (simplified).
+    - Add-on installation via URL and the phone QR manager.
+    - Basic playback controls: player preference, stream selection (Manual or Auto), auto-play next episode, P2P toggle.
+    - Subtitle and audio basics: preferred language and subtitle size.
+    - Appearance basics: theme and app language.
+    - Account sign-in and profile management (primary profile only).
+    - About screen.
+
+    Essential hides:
+    - Layout customization, catalog ordering, and collection editor.
+    - Plug-in repository management.
+    - Advanced playback tuning, decoder settings, and frame-rate matching.
+    - TMDB, MDBList, Anime-Skip, and advanced Trakt configuration.
+    - P2P stats overlay, debug tools, and diagnostics.
+  </Tab>
+  <Tab title="Advanced Mode">
+    **Advanced mode** is the full NuvioTV experience. It exposes all current screens and controls and is intended for users who want complete control over layout, integrations, playback engine, and diagnostics.
+
+    Advanced mode exposes the complete settings rail:
+
+    | Rail Item | Description |
+    |---|---|
+    | Experience | Mode switch, visible in both modes |
+    | Account | Sign-in, account sync |
+    | Profiles | Multi-profile management |
+    | Appearance | Theme, font, AMOLED options |
+    | Layout | Home layout, catalog rows, poster sizes |
+    | Content Discovery | Discover, catalog ordering, collections |
+    | Integration | TMDB, MDBList, Anime-Skip, Debrid |
+    | Playback | Full engine, stream, audio, subtitle, buffer settings |
+    | Trakt | OAuth connection, sync settings, library source |
+    | About | Version, supporters, legal |
+    | Advanced | Performance, network diagnostics, cache tools |
+    | Debug | Debug builds only |
+  </Tab>
+</Tabs>
+
+## First-Run Flow
+
+How the mode is determined on first launch depends on whether a prior layout preference exists.
+
+<Tabs>
+  <Tab title="New Install">
+    On a fresh install, NuvioTV shows a mode selection screen before the existing layout selection step.
+
+    ```
+    Account sign-in → Mode selection → [Essential: skip layout] or [Advanced: LayoutSelectionScreen] → Main shell
+    ```
+
+    **If the user chooses Essential:**
+    1. `ExperienceMode.ESSENTIAL` is stored.
+    2. The home layout is set to **Modern**.
+    3. Layout selection is marked as completed (`hasChosenLayout = true`).
+    4. If no add-ons are installed, the app surfaces an add-on setup prompt on Home and Search.
+
+    **If the user chooses Advanced:**
+    1. `ExperienceMode.ADVANCED` is stored.
+    2. The existing `LayoutSelectionScreen` is shown.
+    3. The full app shell loads after layout selection.
+  </Tab>
+  <Tab title="Existing Install">
+    If no `ExperienceMode` value is stored but `LayoutPreferenceDataStore.hasChosenLayout` is already `true`, the app defaults to `ExperienceMode.ADVANCED`. This ensures existing users are never surprised by hidden settings after an update.
+
+    If a stored mode exists, it is always used as-is.
+  </Tab>
+</Tabs>
+
+<Note>
+Switching between Essential and Advanced mode does not delete or reset any user data. Add-ons, plug-in repositories, library items, watch progress, theme, layout, playback, subtitle, account settings, and Trakt/account sync state are all preserved. Mode switching only changes which settings are visible.
+</Note>
+
+## Feature Visibility Matrix
+
+The table below captures what is shown or hidden in each mode. This is the canonical reference for which controls appear in the UI.
+
+<Accordion title="Full Feature Visibility Matrix">
+
+| Feature Area | Essential | Advanced | Notes |
+|---|---|---|---|
+| Home route | Show | Show | Essential uses Modern layout; hides layout customization controls |
+| Search route | Show | Show | Core content discovery |
+| Discover | Show | Show | Essential hides the toggle that disables Discover |
+| Library route | Show | Show | Filters and sorting are shown in both modes |
+| Add-ons route | Show (simplified) | Show (full) | Essential keeps install, QR, installed list, and remove |
+| Add-on reorder | Hide | Show | Advanced organization feature |
+| Catalog Order | Hide | Show | Advanced home tuning |
+| Collections | Hide by default | Show | Essential may show existing collections; hides the editor |
+| Plug-ins | Hide | Show (full flavor only) | Gated by `AppFeaturePolicy.pluginsEnabled` |
+| Account QR sign-in | Show | Show | Optional sync and profiles |
+| Profile management | Limited (primary only) | Full | |
+| Appearance: theme | Show | Show | |
+| Appearance: language | Show | Show | |
+| Appearance: font | Optional | Show | |
+| AMOLED options | Hide | Show | |
+| Layout settings | Hide | Show | Essential sets Modern at first run |
+| Player preference | Show | Show | Recovery path if internal playback fails |
+| Internal engine (ExoPlayer/MPV) | Hide | Show | |
+| Auto-switch engine on error | Hide | Show | |
+| Loading and pause overlays | Hide | Show | Defaults remain active |
+| OSD clock | Hide | Show | |
+| Skip intro setting | Hide | Show | Enabled by default |
+| Frame-rate and resolution matching | Hide | Show | |
+| Stream auto-play mode | Show (Manual/Auto only) | Show (full, including Regex) | |
+| Source scope, add-on/plug-in allowlists, regex | Hide | Show | |
+| Next episode auto-play | Show | Show | |
+| Reuse last link cache | Hide | Show | |
+| Preferred audio language | Show | Show | |
+| Secondary audio language | Hide | Show | |
+| Decoder priority | Hide | Show | |
+| Skip silence | Hide | Show | |
+| Tunneling | Hide | Show | |
+| Dolby Vision profile fallback | Hide | Show | |
+| MPV hardware decode mode | Hide | Show | |
+| Preferred subtitle language | Show | Show | |
+| Secondary subtitle language | Hide | Show | |
+| Subtitle startup mode | Hide | Show | |
+| Subtitle size | Show | Show | |
+| Subtitle vertical offset | Hide | Show | |
+| Subtitle colors, outline, bold | Hide | Show | |
+| libass and render type | Hide | Show | |
+| P2P enable/consent | Show when needed | Show | Consent dialog always appears before first torrent stream |
+| P2P stats overlay | Hide | Show | |
+| TMDB settings | Hide | Show | Defaults remain active in Essential |
+| MDBList settings | Hide | Show | |
+| Anime-Skip settings | Hide | Show | |
+| Trakt connection | Limited (see below) | Show (full) | |
+| Trakt library/progress/comment settings | Hide | Show | |
+| Advanced performance settings | Hide | Show | |
+| Network speed test | Hide | Show | |
+| Clear Continue Watching cache | Hide | Show | |
+| Debug settings | Hide | Show (debug builds only) | |
+| Player play/pause/seek | Show | Show | Core playback |
+| Player audio/subtitle/source selectors | Show | Show | Core playback recovery |
+| Player episode panel | Show | Show | |
+| Player speed/aspect/stream info | Hide or behind More | Show | |
+| Player engine switch | Hide | Show | |
+
+</Accordion>
+
+## Switching Modes
+
+Both modes expose an **Experience** section at the top of the settings rail. From there you can switch modes at any time.
+
+**Settings → Experience → Switch to Advanced** (or vice versa)
+
+- Switching from Essential to Advanced **immediately reveals** the full settings rail.
+- Switching from Advanced to Essential **hides** advanced controls but does not reset any values.
+- If active advanced features are enabled (e.g., plug-in scrapers), a note is shown: *"Some advanced settings are still active."*
+
+## Build Flavor Notes
+
+`AppFeaturePolicy` gates certain features at build time regardless of experience mode:
+
+| Policy Flag | Full Flavor | Play Store Flavor |
+|---|---|---|
+| `pluginsEnabled` | `true` | `false` |
+| `inAppUpdatesEnabled` | `true` | `false` |
+| `inAppTrailerPlaybackEnabled` | `true` | `false` |
+| `externalTrailerPlaybackEnabled` | `true` | `true` |
+| `trailerPlaybackMode` | `IN_APP` | `EXTERNAL` |
+| `imdbRatingLogoEnabled` | `true` | `false` |
+
+Even in Advanced mode, plug-ins and in-app updates are not shown in the Play Store flavor because `AppFeaturePolicy.pluginsEnabled` is `false`. Experience mode visibility checks are always combined with build policy checks.
+
+## Essential Mode Recommended Defaults
+
+When a user selects Essential during first run, the following defaults are applied:
+
+| Setting | Value |
+|---|---|
+| Experience mode | `ESSENTIAL` |
+| Home layout | Modern |
+| Layout chosen | `true` (skips layout selection) |
+| Search Discover | `true` |
+| Player preference | Internal |
+| Internal engine | ExoPlayer |
+| Stream auto-play mode | Manual |
+| Auto-play next episode | Off (visible as a toggle) |
+| Preferred audio language | Device |
+| Preferred subtitle language | English |
+| Add-on subtitle startup mode | All subtitles |
+| Skip intro | Enabled |
+| P2P | Disabled until explicit consent |

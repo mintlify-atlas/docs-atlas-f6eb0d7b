@@ -1,0 +1,121 @@
+---
+title: "Library, Watch Progress, and Cloud Sync in NuvioTV"
+sidebarTitle: "Library"
+description: "NuvioTV tracks watch history and continue-watching state locally and syncs to a Nuvio account. Debrid cloud libraries from Torbox and Premiumize are also accessible."
+---
+
+NuvioTV maintains a local library of everything you have saved or started watching, and optionally syncs it to the cloud through your Nuvio account. The Library screen also surfaces your debrid provider's cloud file storage and, when Trakt is connected, your Trakt watch lists.
+
+<CardGroup cols={2}>
+  <Card title="Local Library" icon="hard-drive" href="/features/library">
+    Stored on device using DataStore. Records watch progress per movie and per episode, saved items, and watched history. Works fully offline with no account required. Each profile has its own isolated local library.
+  </Card>
+  <Card title="Cloud Sync" icon="cloud" href="/features/library">
+    Sign into a Nuvio account (Supabase-backed) to sync watch progress and saved items across all your devices. Cloud sync is additive — local data is never deleted when you sign in.
+  </Card>
+</CardGroup>
+
+## Watch progress
+
+`WatchProgress` is the core model for tracking playback state:
+
+```kotlin
+data class WatchProgress(
+    val contentId: String,       // IMDb ID of the movie or series
+    val contentType: String,     // "movie" or "series"
+    val name: String,
+    val poster: String?,
+    val videoId: String,         // Specific episode video ID
+    val season: Int?,            // null for movies
+    val episode: Int?,           // null for movies
+    val episodeTitle: String?,
+    val position: Long,          // Resume position in milliseconds
+    val duration: Long,          // Total duration in milliseconds
+    val lastWatched: Long,       // Unix timestamp
+    val source: String           // "local", "trakt_playback", "trakt_history", "trakt_show_progress"
+)
+```
+
+Progress is written at the end of each playback session. `WatchProgress.STARTED_THRESHOLD` (2%) marks when an item is considered started; `WatchProgress.COMPLETED_THRESHOLD` (90%) marks it as completed. `resolveResumePosition()` handles the case where the stored duration differs from the actual stream duration — it falls back to the stored `progressPercent` fraction when available.
+
+## Continue Watching
+
+The Continue Watching row on the Home screen is populated from all `WatchProgress` records that are in-progress (started but not completed). `ContinueWatchingSortMode` controls row ordering:
+
+| Mode | Behaviour |
+|---|---|
+| `DEFAULT` | Sorted by `lastWatched` timestamp, most recent first |
+| `STREAMING_STYLE` | Groups series together, placing the next unwatched episode adjacent to the last-watched episode |
+
+<Note>
+  The Continue Watching cache can be cleared from **Settings → Advanced → Clear continue watching cache**. This removes the local progress records but does not affect cloud-synced history.
+</Note>
+
+## Saved items
+
+`SavedLibraryItem` records a title you have explicitly bookmarked:
+
+```kotlin
+data class SavedLibraryItem(
+    val id: String,
+    val type: String,           // "movie" or "series"
+    val name: String,
+    val poster: String?,
+    val posterShape: PosterShape,
+    val background: String?,
+    val description: String?,
+    val releaseInfo: String?,
+    val imdbRating: Float?,
+    val genres: List<String>,
+    val addonBaseUrl: String?,  // Addon used when item was saved
+    val logo: String?,
+    val addedAt: Long           // Unix timestamp
+)
+```
+
+The Library screen lets you filter saved items by type (movies / series) and sort them. `LibraryEntry` is the unified model used when Trakt list data is merged with local saves — it extends `SavedLibraryItem` with Trakt-specific fields (`traktRank`, `traktId`) and a `listKeys` set that records which library lists the item belongs to.
+
+## Watched history
+
+`WatchedItem` is a lightweight record written when an episode or movie is marked as fully watched:
+
+```kotlin
+data class WatchedItem(
+    val contentId: String,
+    val contentType: String,
+    val title: String,
+    val season: Int?,
+    val episode: Int?,
+    val watchedAt: Long
+)
+```
+
+This history feeds the "watched" badge on episode grids and informs Trakt sync.
+
+## Cloud sync (Nuvio account)
+
+Signing into a Nuvio account (see [Profiles](/features/profiles)) enables bidirectional sync of watch progress and saved items across all devices signed into the same account. Sync is triggered automatically on app launch and on relevant data changes. The `AuthManager` manages the Supabase session; `get_sync_owner` is a server-side RPC that resolves the effective user ID when a device is linked via a sync code rather than a direct account sign-in.
+
+## Trakt integration
+
+When a Trakt account is connected, NuvioTV syncs watch history in both directions:
+
+- **From Trakt** — `WatchProgress` records are created from Trakt playback history (`source = SOURCE_TRAKT_PLAYBACK`), Trakt watch history (`SOURCE_TRAKT_HISTORY`), and Trakt show progress (`SOURCE_TRAKT_SHOW_PROGRESS`).
+- **To Trakt** — local watch events are scrobbled to Trakt.
+
+Trakt library lists (watchlist and personal lists) appear as tabs in the Library screen, represented as `LibraryListTab` entries with `type = WATCHLIST` or `type = PERSONAL`. Each tab's `traktListId` and `slug` identify the remote list. Privacy is tracked via `TraktListPrivacy` (PRIVATE, LINK, FRIENDS, PUBLIC).
+
+## Debrid cloud library
+
+Torbox and Premiumize users can browse their debrid cloud storage directly from the Library screen. The integration is built around `CloudLibraryProviderApi`:
+
+- `TorboxCloudLibraryProviderApi` and `PremiumizeCloudLibraryProviderApi` implement the provider-specific API calls.
+- `CloudLibraryItem` represents one entry in the cloud (a torrent, usenet download, web download, or file) with fields `id`, `name`, `type` (`CloudLibraryItemType`), `status`, `sizeBytes`, `progressFraction`, and a `files` list.
+- `CloudLibraryFile` represents an individual playable file within an item, carrying a `playbackUrl` when the file is ready to stream.
+- `CloudLibraryUiState` aggregates all configured providers into a unified `providers: List<CloudLibraryProviderState>` for display.
+
+Selecting a file triggers `CloudLibraryPlaybackResult.Success` with the resolved URL and opens the player directly.
+
+## Profile-scoped library
+
+Every profile (see [Profiles](/features/profiles)) has completely isolated watch progress, saved items, and watched history. Switching profiles immediately changes which library data is shown throughout the app. Cloud sync is per-profile when using a Nuvio account.

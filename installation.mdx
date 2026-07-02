@@ -1,0 +1,119 @@
+---
+title: "Install NuvioTV on Android TV"
+sidebarTitle: "Installation"
+description: "Download and sideload NuvioTV APK on your Android TV device. Covers APK installation, ADB sideloading, and device compatibility requirements."
+---
+
+NuvioTV is distributed as an APK and is not listed on the Google Play Store in its full-featured form. Installation requires enabling sideloading on your Android TV device, then transferring the APK either directly or over ADB. This page covers both methods and explains the differences between the available build flavors.
+
+## System requirements
+
+| Requirement | Minimum |
+|---|---|
+| OS | Android TV / Google TV |
+| Android API level | 24 (Android 7.0) |
+| Target API level | 36 |
+| Architecture | `armeabi-v7a`, `arm64-v8a`, `x86`, or `x86_64` |
+
+<Note>
+  While the minimum SDK is API 24, NuvioTV is designed and tested for Android TV-class devices. Phones and tablets are not a supported form factor — the entire UI is built with TV Material3 and optimized for D-pad navigation.
+</Note>
+
+## Build flavors
+
+NuvioTV ships two distribution flavors. Make sure you download the right one:
+
+| Flavor | Package ID | Plugin support | In-app updates | Trailers |
+|---|---|---|---|---|
+| `full` | `com.nuvio.tv` | ✅ Yes | ✅ Yes | ✅ Yes |
+| `playstore` | `com.nuvio.app` | ❌ No | ❌ No | ✅ External only |
+
+**Always use the `full` flavor** unless you specifically need the Play Store variant. The `full` APK is the one published on GitHub Releases.
+
+<Warning>
+  Before installing any APK you must allow installation from unknown sources on your Android TV device. Go to **Settings → Device Preferences → Security & Restrictions** (exact path varies by manufacturer) and enable **Unknown sources** or **Install unknown apps** for whichever app you will use to open the APK (e.g., a file manager or the ADB source). Without this, the system will silently block the install.
+</Warning>
+
+## Installation methods
+
+<Tabs>
+  <Tab title="Direct APK (recommended)">
+    Install the APK directly on your TV using a file manager — no computer required.
+
+    <Steps>
+      <Step title="Download the APK to your TV">
+        Open a browser on your Android TV and navigate to the [NuvioTV GitHub Releases page](https://github.com/tapframe/NuvioTV/releases/latest). Download the latest `NuvioTV-full-release.apk` file (or the universal APK if per-ABI splits are listed).
+      </Step>
+      <Step title="Open a file manager">
+        Launch a file manager app on your TV (such as the built-in **Files** app on Google TV, or a third-party manager like FX File Explorer). Navigate to the **Downloads** folder where the APK was saved.
+      </Step>
+      <Step title="Tap the APK to install">
+        Select the downloaded APK file. The Android package installer will open. Review the permissions and tap **Install**.
+      </Step>
+      <Step title="Launch NuvioTV">
+        Once installation completes, tap **Open** or find NuvioTV in your app drawer. Proceed to the [Quickstart](/quickstart) guide to complete first-launch setup.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="ADB Sideload">
+    Use ADB to push the APK from a computer to your TV over your local network. This method does not require a file manager app on the TV.
+
+    <Steps>
+      <Step title="Enable ADB debugging on your TV">
+        Go to **Settings → Device Preferences → About** and tap **Build** several times to unlock Developer Options. Then go to **Settings → Device Preferences → Developer Options** and enable **USB Debugging** (or **Network Debugging** for ADB over Wi-Fi).
+      </Step>
+      <Step title="Find your TV's IP address">
+        Go to **Settings → Network & Internet** on your TV and note the IP address shown for your current connection.
+      </Step>
+      <Step title="Connect ADB to your TV">
+        On your computer, run:
+
+        ```bash
+        adb connect <tv-ip-address>
+        ```
+
+        Accept the connection prompt that appears on the TV screen.
+      </Step>
+      <Step title="Install the APK">
+        Run the following command from the directory containing the downloaded APK:
+
+        ```bash
+        adb install NuvioTV.apk
+        ```
+
+        ADB will push and install the package. You should see `Success` when it finishes.
+      </Step>
+      <Step title="Launch NuvioTV">
+        The app will appear in your app drawer. Open it and follow the [Quickstart](/quickstart) guide.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Build from source
+
+If you want to compile NuvioTV yourself, see the [Building from Source](/development/building) guide. You will need Android Studio (latest stable), JDK 11+, Android SDK targeting API 36, and Gradle 8+.
+
+A quick reference for the most common build tasks:
+
+```bash
+# Clone the repository
+git clone https://github.com/tapframe/NuvioTV.git
+cd NuvioTV
+
+# Compile the full debug flavor
+./gradlew :app:assembleFullDebug
+
+# Install directly to a connected device / emulator
+adb shell am start -n com.nuviodebug.com/com.nuvio.tv.MainActivity
+```
+
+## First-launch flow
+
+After opening NuvioTV for the first time you will be guided through a short onboarding sequence before reaching the main app:
+
+1. **Account sign-in** — A QR code screen lets you sign in to a NuvioTV account on your phone for profile sync and settings backup. You can tap **Skip** to continue as a guest.
+2. **Experience mode selection** — Choose between **Essential** (focused setup: add-ons, playback basics, Trakt, account) and **Advanced** (full settings: layout, catalog order, collections, plugins, diagnostics). You can switch modes later from Settings.
+3. **Addon setup** — If you chose Essential mode with no addons installed, an addon setup prompt appears. Add at least one Stremio-compatible addon or tap **Continue for now** to skip.
+
+After these steps you land on the Home screen. See the [Quickstart](/quickstart) guide to install your first addon and start streaming.

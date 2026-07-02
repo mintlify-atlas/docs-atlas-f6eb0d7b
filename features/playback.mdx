@@ -1,0 +1,99 @@
+---
+title: "Media Playback Engines and HDR Support in NuvioTV"
+sidebarTitle: "Playback"
+description: "NuvioTV uses ExoPlayer and MPV as dual playback engines with automatic failover, Dolby Vision P7-to-P8.1 transcoding, frame-rate matching, and hardware decoder selection."
+---
+
+NuvioTV ships two full playback engines — ExoPlayer (Media3) and MPV — and can switch between them automatically or on demand. Both engines share the same player UI, subtitle renderer, and track-selection system, so the experience is consistent regardless of which engine is active. Advanced HDR processing, frame-rate matching, and external player support layer on top of both engines.
+
+## Playback engines
+
+<CardGroup cols={2}>
+  <Card title="ExoPlayer (Media3)" icon="play" href="/features/playback">
+    Google's Media3 ExoPlayer with NuvioTV-specific extensions: `BitrateAwareLoadControl` for memory-budget-aware buffering, `ParallelRangeDataSource` for multi-connection parallel HTTP range downloads (MKV/MP4 only — HLS/DASH already handle parallel chunking natively), and a custom `DolbyVisionExtractorsFactory` that hooks the Matroska extractor for DV7→DV8.1 RPU rewriting. Hardware codec acceleration is negotiated through Android's `MediaCodecList` via a custom codec selector.
+  </Card>
+  <Card title="MPV (libmpv)" icon="film" href="/features/playback">
+    libmpv integration rendered into a `NuvioMpvSurfaceView`. MPV handles its own demuxing and decoding pipeline and offers hardware decode modes distinct from ExoPlayer's codec path. MPV's built-in subtitle renderer is used for ASS/SSA tracks; the player also supports `LibassRenderType` variants (CUES, EFFECTS_CANVAS, EFFECTS_OPEN_GL, OVERLAY_CANVAS, OVERLAY_OPEN_GL) for different subtitle compositing strategies.
+  </Card>
+</CardGroup>
+
+### Choosing your engine
+
+Go to **Settings → Playback → Player engine** to set your preferred internal engine. The `InternalPlayerEngine` enum has three values:
+
+| Value | Behaviour |
+|---|---|
+| `EXOPLAYER` | Always use ExoPlayer (default) |
+| `MVP_PLAYER` | Always use MPV |
+| `AUTO` | NuvioTV chooses based on stream type; prefers ExoPlayer, falls back to MPV |
+
+<Tip>
+  Use MPV when ExoPlayer cannot render a specific stream correctly — for example, some HEVC streams with unusual container configurations, or streams where you need MPV's native subtitle positioning. Use ExoPlayer for Dolby Vision content on supported hardware, since the DV7→DV8.1 pipeline is integrated exclusively into the ExoPlayer path.
+</Tip>
+
+### Automatic engine failover
+
+`PlayerRuntimeControllerEngineFailover` monitors playback startup. If a fatal error occurs before the first frame is rendered, NuvioTV can automatically switch to the other engine and resume from the same position — without returning to the stream selection screen. The failover only triggers once per stream load to prevent looping. A brief on-screen banner (`player_engine_switching_message`) notifies the user when an automatic switch occurs.
+
+You can also switch engines manually mid-playback from the in-player controls (the **Switch engine** button in the stream info overlay).
+
+## Dolby Vision P7→P8.1 transcoding
+
+NuvioTV includes a native bridge (`libdovi_bridge`) that rewrites Dolby Vision Profile 7 RPU NALs to Profile 8.1 in real time, enabling DV playback on devices that only expose a Profile-8 decoder.
+
+`DoviBridge` wraps the native library and is only active when the build flag `DOVI_NATIVE_ENABLED=true` is set and a second flag `DOVI_EXTRACTOR_HOOK_READY` confirms the Matroska extractor hook is integrated. At startup, `DoviBridge.probeRealtimeConversionSupport()` runs a self-test with a synthetic RPU payload to confirm the pipeline is working before any real content is processed.
+
+`DolbyVisionBaseLayerPolicy` decides the handling strategy per stream and display:
+
+| Decision | When applied |
+|---|---|
+| `NATIVE_DV7` | Display supports DV and a native DV7 decoder is present (e.g. Shield TV) |
+| `CONVERT_TO_DV81` | Display supports DV with a Profile-8-only decoder (Fire TV, some Xiaomi boxes), or HDR10-only display with a DV8.1 decoder |
+| `STRIP_TO_HDR10` | HDR10 display, no DV decoder present |
+| `STRIP_AND_TONEMAP` | SDR or HLG-only display |
+| `STRIP_BEST_EFFORT` | Display capabilities unknown |
+
+`DolbyVisionCodecFallback` handles devices (e.g. Xiaomi Mi Box S) where the hardware DV decoder advertises only Profile 7 but actually accepts Profile 8.1 streams. It queries `MediaCodecList` directly — ignoring the advertised profile — to find and return the hidden decoder when the standard ExoPlayer codec selector would otherwise reject it.
+
+`DolbyVisionMatroskaTransformer` is the low-level per-sample transformer that calls `DoviBridge.convertDv7RpuToDv81NonAllocating()` for zero-allocation RPU rewriting in the media decode thread.
+
+## Frame-rate matching
+
+`PlayerFrameRateHeuristics` and `PlayerDisplayModeUtils` implement HDMI display-mode switching so the TV's refresh rate matches the stream's frame rate (24 Hz, 25 Hz, 30 Hz, 60 Hz, etc.), eliminating 3:2 pulldown judder on 60 Hz displays.
+
+`DisplayCapabilities.detect()` inspects `Display.getSupportedModes()` at startup and populates a `Snapshot` that records whether the current display supports both frame-rate switching (`supportsFrameRateSwitching`) and resolution switching (`supportsResolutionSwitching`). This snapshot informs the Settings UI — if the display reports no supported modes, the frame-rate matching toggle is hidden as a hint to the user that the hardware may not respond.
+
+`PlayerFrameRateHeuristics` applies an extra correction for the common 24.000/23.976 ambiguity: if the container track reports a frame rate in the range 23.95–24.05 Hz and the media probe detects a true NTSC film rate (24000/1001 ≈ 23.976 Hz), the more precise value is substituted before the display mode selection.
+
+## Auto-play next episode
+
+`PlayerNextEpisodeRules.resolveNextEpisode()` determines the next episode by sorting the series video list by season then episode number. For anime content using absolute episode numbering (no season value), it sorts by episode number alone.
+
+`PlayerNextEpisodeRules.shouldShowNextEpisodeCard()` controls when the next-episode card appears. It checks for Anime-Skip outro segments first:
+
+- If an outro segment is present and ends close to the file end, the card fires at the outro's start time.
+- If the outro ends well before the file end, the card fires based on the user-configured threshold (either a percentage of duration, e.g. 97–100%, or a minutes-before-end value up to 3.5 minutes).
+- If no outro data is available, the configured threshold is applied directly.
+
+The `bingeGroup` field in a stream's `StreamBehaviorHints` enables binge-watching: streams that share the same `bingeGroup` string are grouped as a series, and NuvioTV will auto-advance to the next stream in the group.
+
+## Skip intro (Anime-Skip)
+
+NuvioTV integrates with [Anime-Skip](https://anime-skip.com) to detect intro and outro segments automatically. When enabled (`AnimeSkipSettingsDataStore.enabled`), detected intervals are passed to `PlayerNextEpisodeRules` and displayed as a **Skip** button in the player UI. Anime-Skip requires an optional client ID configured in **Settings → Playback → Anime-Skip**.
+
+## External player support
+
+Setting the player preference to **External** (`InternalPlayerEngine` isn't involved; the stream URL is handed off via `ExternalPlayerLauncher`) launches the system's default video player app or a user-chosen app. `ExternalPlaybackTracker` monitors the external app's lifecycle to update watch progress when the user returns, and `ExternalAutoNextPolicy` applies the auto-next-episode logic for external sessions.
+
+## In-player controls
+
+The player overlay (`PlayerScreen`) provides the following controls accessible via the D-pad:
+
+- **Audio track selection** — switch between all audio tracks detected in the stream.
+- **Subtitle selection** — choose from embedded subtitle tracks, disable subtitles, or pick an addon-provided external subtitle.
+- **Stream source switching** — open the streams panel to change to a different stream source without leaving the player.
+- **Episode panel** — browse and jump to any episode in the current series.
+- **Playback speed** — step through speed presets.
+- **Aspect ratio** — cycle through aspect modes stored in `DeviceLocalPlayerPreferences` (device-local, never synced).
+- **Stream info overlay** — shows codec, resolution, bitrate, and DV conversion status.
+- **Engine switch** — switch between ExoPlayer and MPV mid-playback.

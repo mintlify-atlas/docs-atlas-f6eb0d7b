@@ -1,0 +1,283 @@
+---
+title: "NuvioTV App Architecture and Module Structure"
+sidebarTitle: "Architecture"
+description: "NuvioTV follows clean architecture with domain, data, and UI layers. This page covers the module layout, Hilt DI graph, navigation system, and key subsystem designs."
+---
+
+NuvioTV is structured around a clean architecture pattern with three distinct layers: a pure **domain** layer that owns models and repository interfaces, a **data** layer that owns implementations, and a **UI** layer built entirely in Jetpack Compose. Hilt wires the graph together at compile time; all singletons are scoped to `SingletonComponent`. There are no circular dependencies between layers — domain has zero Android or framework imports, data depends only on domain, and UI depends on both.
+
+```
+┌─────────────────────────────────────────────────┐
+│                     UI Layer                    │
+│  Compose Screens · ViewModels · NuvioNavHost    │
+│  Theme · Components · Navigation                │
+└──────────────────────┬──────────────────────────┘
+                       │ observes / calls
+┌──────────────────────▼──────────────────────────┐
+│                   Domain Layer                  │
+│  Pure models · Repository interfaces            │
+│  (zero Android dependencies)                    │
+└──────────────────────┬──────────────────────────┘
+                       │ implemented by
+┌──────────────────────▼──────────────────────────┐
+│                   Data Layer                    │
+│  DataStore (local) · Retrofit APIs (remote)     │
+│  Supabase clients · Repository impls · Mappers  │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## Package Structure
+
+All source lives under `com.nuvio.tv`, split into four top-level packages:
+
+### `core/`
+
+Cross-cutting concerns shared across the application. Each sub-package is a self-contained subsystem:
+
+| Package | Contents |
+|---|---|
+| `core/auth` | `AuthManager` — Supabase session state, `AuthState` flow |
+| `core/build` | `AppFeaturePolicy` — compile-time feature gates per build flavor |
+| `core/debrid` | `DirectDebridResolver`, per-provider resolvers (RealDebrid, Premiumize, Torbox), `DebridDeviceAuth`, `LocalDebridService` |
+| `core/di` | Hilt modules: `NetworkModule`, `RepositoryModule`, `SupabaseModule`, `ProfileModule`, `TorrentModule` |
+| `core/network` | `IPv4FirstDns` — forces IPv4 resolution for addon compatibility |
+| `core/player` | `PlayerRuntimeController` and its extension files, `NuvioMpvSurfaceView`, `DisplayCapabilities`, Dolby Vision bridge |
+| `core/plugin` | `PluginManager`, `PluginRuntime`, Cloudstream extension loader (full flavor only) |
+| `core/recommendations` | Android TV channel / Continue Watching integration |
+| `core/server` | NanoHTTPD-based local HTTP server for in-app addon management web UI |
+| `core/streams` | `StreamBadgePresentation`, `StreamBadgeRules`, `StreamBadgeSettings` — stream quality badge pipeline |
+| `core/sync` | Supabase-backed sync services for library, watch progress, profiles, addons, plugins |
+| `core/tmdb` | TMDB metadata helpers |
+| `core/torrent` | `TorrentService`, `TorrServerBinary`, `TorrServerApi` — libtorrserver integration |
+| `core/trakt` | Trakt scrobble and progress tracking |
+
+### `data/`
+
+Concrete implementations of all repository interfaces plus raw data sources:
+
+- **`data/local/`** — DataStore-backed preferences for every feature area: `ThemeDataStore`, `LayoutPreferenceDataStore`, `PlayerSettingsDataStore`, `DebridSettingsDataStore`, `PluginDataStore`, `ProfileDataStore`, `CollectionsDataStore`, and more.
+- **`data/remote/api/`** — Retrofit interface definitions: `AddonApi`, `TraktApi`, `TmdbApi`, `RealDebridApi`, `PremiumizeApi`, `TorboxApi`, `GitHubReleaseApi`, `PlaybackIssueReportApi`, `UniqueContributionsApi`, and others.
+- **`data/remote/supabase/`** — Supabase Postgrest and Realtime clients for auth, profiles, library, and avatars.
+- **`data/repository/`** — Implementations bound in `RepositoryModule`: `AddonRepositoryImpl`, `CatalogRepositoryImpl`, `LibraryRepositoryImpl`, `MetaRepositoryImpl`, `StreamRepositoryImpl`, `SubtitleRepositoryImpl`, `SyncRepositoryImpl`, `WatchProgressRepositoryImpl`.
+- **`data/mapper/`** — Pure mapping functions between remote DTOs and domain models.
+
+### `domain/`
+
+Framework-free models and repository interfaces. This layer compiles with no Android SDK imports:
+
+- **`domain/model/`** — Data classes: `AuthState`, `AppTheme`, `AppFont`, `ExperienceMode`, `PluginManifest`, `DebridProvider`, `StreamBadge`, and all media metadata models.
+- **`domain/repository/`** — Interfaces: `AddonRepository`, `CatalogRepository`, `LibraryRepository`, `MetaRepository`, `StreamRepository`, `SubtitleRepository`, `SyncRepository`, `WatchProgressRepository`.
+
+### `ui/`
+
+All Compose screens, ViewModels, and shared UI infrastructure:
+
+- **`ui/screens/`** — One sub-package per screen: `home`, `detail`, `stream`, `player`, `search`, `library`, `settings`, `addon`, `plugin`, `profile`, `account`, `cast`, `collection`, `tmdb`.
+- **`ui/navigation/`** — `Screen` sealed class (all routes) and `NuvioNavHost` (the single `NavHost` composable).
+- **`ui/theme/`** — `NuvioTheme`, `NuvioColors`, `NuvioMotion`, `NuvioComponents`, `NuvioPrimitives`, `NuvioRadii`, `NuvioStrokes`, `NuvioSizes`.
+- **`ui/components/`** — Shared composables: `ProfileAvatarCircle`, `NuvioScrollDefaults`, and others.
+- **`ui/util/`** — `LocalFastHorizontalNavigationEnabled`, `LocalRecompositionHighlighterEnabled`, and other composition locals.
+
+---
+
+## Build Flavors and Feature Policy
+
+The `distribution` flavor dimension controls which features are compiled in. Source sets live at `app/src/full/` and `app/src/playstore/`.
+
+`AppFeaturePolicy` (in `core/build/`) is the single authority on which features are active at runtime:
+
+```kotlin
+// app/src/full/java/com/nuvio/tv/core/build/AppFeaturePolicy.kt
+object AppFeaturePolicy {
+    val pluginsEnabled: Boolean = true
+    val inAppUpdatesEnabled: Boolean = true
+    val inAppTrailerPlaybackEnabled: Boolean = true
+    val externalTrailerPlaybackEnabled: Boolean = true
+    val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.IN_APP
+    val imdbRatingLogoEnabled: Boolean = true
+}
+```
+
+The `playstore` source set provides the same object with `pluginsEnabled = false`, `inAppUpdatesEnabled = false`, and `inAppTrailerPlaybackEnabled = false`. `NuvioNavHost` checks `AppFeaturePolicy.pluginsEnabled` before registering the `Screen.Plugins` composable route, so the Plugins screen is entirely absent from the navigation graph in the Play Store build.
+
+---
+
+## Dependency Injection (Hilt)
+
+NuvioTV uses Hilt with a single `@HiltAndroidApp` entry point on `NuvioApplication`. All Hilt modules install into `SingletonComponent`.
+
+| Module | Responsibilities |
+|---|---|
+| `NetworkModule` | `OkHttpClient` (with `IPv4FirstDns`, 50 MB disk cache, User-Agent interceptor, locale-aware `Accept-Language`), dedicated `OkHttpClient` instances for debrid providers and Trakt, Retrofit instances per API base URL, all Retrofit API interface bindings |
+| `RepositoryModule` | `@Binds` all `*RepositoryImpl` classes to their domain interfaces |
+| `SupabaseModule` | `SupabaseClient` with `Auth`, `Postgrest`, and `Realtime` plugins; `Auth` and `Postgrest` accessors |
+| `ProfileModule` | `ProfileManager` and profile-scoped DataStore factories |
+| `TorrentModule` | `TorrentService` and `TorrServerBinary` singletons |
+
+In the `full` flavor, a `PluginModule` (in `app/src/full/`) additionally binds `PluginManager`, `PluginRuntime`, `ExternalExtensionLoader`, and `ExternalExtensionRunner`.
+
+`MainActivity` and `NuvioApplication` are both annotated with `@AndroidEntryPoint` / `@HiltAndroidApp` respectively. All ViewModels use `@HiltViewModel`.
+
+---
+
+## Navigation System
+
+The entire app uses a single `NavHostController` created in `MainActivity` and passed to `NuvioNavHost`. All navigation is driven by string routes defined in the `Screen` sealed class.
+
+Every screen is a `data object` inside `Screen`:
+
+```kotlin
+sealed class Screen(val route: String) {
+    data object Home : Screen("home")
+    data object Search : Screen("search")
+    data object Discover : Screen("discover")
+    data object Library : Screen("library")
+    data object Settings : Screen("settings")
+    data object Detail : Screen("detail/{itemId}/{itemType}?...")
+    data object Stream : Screen("stream/{videoId}/{contentType}/{title}?...")
+    data object Player : Screen("player/{streamUrl}/{title}?...")
+    data object AddonManager : Screen("addon_manager")
+    data object Plugins : Screen("plugins")
+    data object Trakt : Screen("trakt")
+    data object Account : Screen("account")
+    data object ManageProfiles : Screen("manage_profiles")
+    // ... and more
+}
+```
+
+Parameterized routes (`Detail`, `Stream`, `Player`, `CatalogSeeAll`, `CastDetail`, `TmdbEntityBrowse`, etc.) expose `createRoute(...)` functions that URL-encode all arguments. `NuvioNavHost` declares matching `navArgument` blocks for each.
+
+Transitions are fade in/fade out using `NuvioMotion.tokens.durations.medium`, except for the `Stream → Player` auto-play navigation path, which uses `EnterTransition.None` / `ExitTransition.None` to avoid a flash between the stream selection screen and the player.
+
+The sidebar navigation items (Home, Search, Library, Settings, and optionally Discover) are managed in `MainActivity` using `ModalNavigationDrawer` from TV Material 3. Drawer item clicks call `navController.navigate(targetRoute)` with `saveState = true` and `restoreState = true` so each root screen's scroll and focus state is preserved across tab switches.
+
+---
+
+## Key Subsystems
+
+<CardGroup cols={2}>
+  <Card
+    icon="play"
+    title="Player"
+    href="/development/architecture"
+  >
+    ExoPlayer and MPV lifecycle, track selection, Dolby Vision, subtitle timing, scrobble, and next-episode logic.
+  </Card>
+  <Card
+    icon="puzzle"
+    title="Addons & Plugins"
+    href="/development/architecture"
+  >
+    Stremio-compatible addon manifest system plus full-flavor Cloudstream APK plugin loading.
+  </Card>
+  <Card
+    icon="cloud"
+    title="Debrid"
+    href="/development/architecture"
+  >
+    RealDebrid, Premiumize, and Torbox resolvers with OAuth device flow and local cache/P2P fallback.
+  </Card>
+  <Card
+    icon="rotate"
+    title="Sync"
+    href="/development/architecture"
+  >
+    Supabase-backed real-time sync for library, watch progress, profiles, addons, and plugins.
+  </Card>
+</CardGroup>
+
+### Player Subsystem
+
+`PlayerRuntimeController` is the central orchestrator for all playback. It is split across multiple extension files to stay manageable:
+
+| File | Responsibility |
+|---|---|
+| `PlayerRuntimeControllerLifecycle.kt` | Activity lifecycle integration, surface attachment |
+| `PlayerRuntimeControllerInitialization.kt` | ExoPlayer / MPV engine selection and setup |
+| `PlayerRuntimeControllerStartup.kt` | Initial media source preparation and resume position |
+| `PlayerRuntimeControllerEngineFailover.kt` | Automatic fallback between ExoPlayer and MPV on codec errors |
+| `PlayerRuntimeControllerErrorRecovery.kt` | Stall detection, retry with backoff |
+| `PlayerRuntimeControllerTrackSelection.kt` | Audio, subtitle, and video track selection |
+| `PlayerRuntimeControllerTracks.kt` | Track model → UI state mapping |
+| `PlayerRuntimeControllerSubtitleTiming.kt` | Subtitle offset / delay adjustment |
+| `PlayerRuntimeControllerScrobble.kt` | Trakt and internal watch-progress scrobbling |
+| `PlayerRuntimeControllerPlaybackEvents.kt` | Playback-state transitions, end-of-media detection |
+| `PlayerRuntimeControllerStreams.kt` | Stream source switching mid-playback |
+| `PlayerRuntimeControllerMpv.kt` | libmpv-specific setup via `NuvioMpvSurfaceView` |
+| `PlayerRuntimeControllerAfrPreflight.kt` | Android TV adaptive frame-rate preflight |
+| `PlayerRuntimeControllerMetadata.kt` | Media session metadata updates |
+| `PlayerRuntimeControllerObservers.kt` | ExoPlayer `Player.Listener` / MPV event callbacks |
+
+`NuvioMpvSurfaceView` wraps `io.github.abdallahmehiz:mpv-android-lib` and provides the MPV surface for hardware-decoded playback. `DoviBridge` is the JNI entry point for the `dovi_bridge` native library when `DOVI_NATIVE_ENABLED=true`.
+
+The stock `androidx.media3` modules are excluded from the dependency graph and replaced by local AAR forks (`libs/lib-common-release.aar`, `lib-exoplayer-release.aar`, etc.) that carry Nuvio-specific patches.
+
+### Addon / Plugin System
+
+**Stremio-compatible addons** are installed via URL to a manifest JSON endpoint. `AddonApi` (Retrofit) fetches the manifest; `AddonRepositoryImpl` stores installed addons in `AddonPreferences` DataStore. The stream selection screen (`StreamScreen`) calls `StreamRepository` to aggregate streams from all installed addons for the requested content.
+
+`StreamBadgePresentation` (in `core/streams/`) post-processes the raw stream list to attach quality badges (resolution, HDR format, audio codec, debrid provider) based on configurable `StreamBadgeRules`.
+
+**Cloudstream plugins** (full flavor only) are side-loaded as APKs. `ExternalExtensionLoader` uses `DexClassLoader` to load a plugin APK from the app's private storage, locates the class annotated with `@CloudstreamPlugin`, and wraps it in `ReflectivePluginWrapper` if it uses a non-standard base class. `PluginManager` manages the lifecycle of installed plugins, enforces a `MAX_CONCURRENT_SCRAPERS = 10` semaphore, applies a `SCRAPER_TIMEOUT_MS = 120_000` safety net, and limits results to `MAX_RESULT_ITEMS = 150` per search. `PluginRuntimeHooks` provides `onApplicationCreate(Application)` and `onActivityCreate(Activity)` lifecycle callbacks wired from `NuvioApplication` and `MainActivity`.
+
+### Debrid Subsystem
+
+`DirectDebridResolver` is the top-level orchestrator that selects the correct debrid provider and resolves a stream URL or magnet link to a direct download link. Individual provider resolvers:
+
+- `RealDebridDirectDebridResolver` — Real-Debrid API (`https://api.real-debrid.com/rest/1.0/`)
+- `PremiumizeDirectDebridResolver` — Premiumize API (`https://www.premiumize.me/`)
+- `TorboxDirectDebridResolver` — Torbox API (`https://api.torbox.app/`)
+
+`DebridDeviceAuth` implements OAuth 2.0 device flow for all three providers. `LocalDebridAvailabilityService` checks provider cache availability before attempting a full resolution. `LocalDebridService` handles P2P / local torrent cache checks.
+
+Each resolver has a companion `*FileSelector` that picks the correct file from a multi-file torrent result.
+
+### Sync Subsystem
+
+All sync services live in `core/sync/` and are scoped as singletons in `SingletonComponent`:
+
+| Service | What it syncs |
+|---|---|
+| `StartupSyncService` | Orchestrates all sync on app start or explicit refresh |
+| `LibrarySyncService` | Watchlist / library items ↔ Supabase |
+| `WatchProgressSyncService` | Per-episode/movie playback position ↔ Supabase |
+| `WatchedItemsSyncService` | Watched/unwatched flags ↔ Supabase |
+| `ProfileSyncService` | Profile list and profile lock states ↔ Supabase |
+| `ProfileSettingsSyncService` | Per-profile settings ↔ Supabase |
+| `AddonSyncService` | Installed addon list ↔ Supabase |
+| `PluginSyncService` | Installed plugin list ↔ Supabase (full flavor) |
+| `CollectionSyncService` | User-created collections ↔ Supabase |
+| `HomeCatalogSettingsSyncService` | Home catalog ordering ↔ Supabase |
+| `RealtimeSyncInvalidationService` | Supabase Realtime subscription for push invalidation |
+
+`RealtimeSyncInvalidationService` is started in `NuvioApplication.onCreate()` and listens for Supabase Realtime events to invalidate local caches in real time across devices.
+
+### Local HTTP Server
+
+`core/server/` contains a NanoHTTPD-based local HTTP server that serves the addon management web UI. Each configuration type has a dedicated server class and web page:
+
+- `AddonConfigServer` + `AddonWebPage` — install/remove Stremio addons
+- `RepositoryConfigServer` + `RepositoryWebPage` — manage Cloudstream plugin repositories
+- `StreamBadgeConfigServer` + `StreamBadgeWebPage` — configure stream badge presentation rules
+- `DebridFormatterConfigServer` + `DebridFormatterWebPage` — debrid stream formatter settings
+
+The server is accessible from a companion phone or browser on the same network. A QR code (generated via `zxing-core`) is shown in the app for easy connection.
+
+---
+
+## Application Startup Sequence
+
+When the app launches, `NuvioApplication.onCreate()`:
+1. Calls `PluginRuntimeHooks.onApplicationCreate(this)` — initialises the Cloudstream `AcraApplication` shim.
+2. Starts `AndroidTvChannelSyncService` — syncs the Continue Watching channel row.
+3. Starts `RealtimeSyncInvalidationService` — connects the Supabase Realtime WebSocket.
+4. Reads the saved locale tag from `SharedPreferences` into `LocaleCache` for use before the first `Activity.attachBaseContext`.
+
+`MainActivity.onCreate()` then:
+1. Installs the splash screen.
+2. Calls `PluginRuntimeHooks.onActivityCreate(this)`.
+3. Detects display capabilities (`DisplayCapabilities.detect`).
+4. Sets up `JankStats` for performance monitoring.
+5. Renders the Compose content tree, which resolves auth state, profile selection, onboarding, and experience mode before committing to the main `NuvioNavHost`.

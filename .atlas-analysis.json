@@ -1,0 +1,91 @@
+{
+  "projectType": "saas",
+  "projectName": "NuvioTV",
+  "projectDescription": "A modern Android TV media player that integrates with the Stremio addon ecosystem for content discovery, source resolution, and TV-optimized playback.",
+  "theme": "luma",
+  "primaryColor": "#40d0e9",
+  "lightColor": "#b750f0",
+  "darkColor": "#ffffff",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/addons",
+              "features/playback",
+              "features/debrid",
+              "features/library",
+              "features/profiles"
+            ]
+          },
+          {
+            "group": "Settings & Configuration",
+            "pages": [
+              "configuration/experience-modes",
+              "configuration/playback-settings",
+              "configuration/subtitle-audio",
+              "configuration/integrations"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/building",
+              "development/architecture",
+              "development/contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Stremio addon ecosystem integration for content discovery and stream resolution",
+    "Dual-engine playback with ExoPlayer and MPV",
+    "Debrid service support (Torbox, Premiumize, Real-Debrid) with cached torrent resolution",
+    "Dolby Vision Profile 7 to 8.1 transcoding via native libdovi bridge",
+    "Android TV-first UI built with Jetpack Compose and TV Material3",
+    "Cloud library sync via Supabase with multi-profile support",
+    "Trakt integration for watch progress scrobbling and lists",
+    "Stream badge system with customizable filtering rules",
+    "Essential and Advanced experience modes for new vs. power users",
+    "QR-based add-on management from a mobile phone",
+    "Auto-play next episode with binge-group support",
+    "Skip intro detection via Anime-Skip integration",
+    "P2P torrent streaming with consent-gated BitTorrent support",
+    "Frame-rate matching and display mode switching for HDR/Dolby Vision content"
+  ],
+  "publicApiSurface": [
+    "Screen.Home, Screen.Search, Screen.Library, Screen.Addon, Screen.Settings — root navigation destinations",
+    "Screen.Detail.createRoute(itemId, itemType, addonBaseUrl?, ...) — content detail navigation",
+    "Screen.Stream.createRoute(videoId, contentType, title, ...) — stream selection navigation",
+    "Screen.Player.createRoute(streamUrl, title, ...) — player launch route",
+    "DebridProviders.all(), DebridProviders.visible(), DebridProviders.byId(id) — debrid provider registry",
+    "DebridProviders.configuredServices(settings), DebridProviders.preferredResolverService(settings) — active debrid services",
+    "Stream.getStreamUrl(), Stream.isTorrent(), Stream.isDirectDebrid(), Stream.isYouTube() — stream type resolution",
+    "Stream.getDisplayName(), Stream.stableKey() — stream display helpers",
+    "AddonStreams(addonName, addonLogo, streams) — grouped stream model",
+    "Addon(id, name, baseUrl, catalogs, types, resources, ...) — addon manifest model",
+    "CatalogDescriptor(type, id, name, extra, showInHome) — catalog row descriptor",
+    "ExperienceMode.ESSENTIAL / ExperienceMode.ADVANCED — app complexity mode enum",
+    "DebridProvider(id, displayName, shortName, authMethod, capabilities) — debrid provider descriptor",
+    "DebridProviderCapability.ClientResolve / LocalTorrentCacheCheck / LocalTorrentResolve / CloudLibrary — capability flags",
+    "StreamBadge(name, imageURL, tagColor, tagStyle, textColor, borderColor) — stream label model",
+    "StreamBadgePresentation.apply(groups) — badge application pipeline",
+    "AppFeaturePolicy.pluginsEnabled, inAppUpdatesEnabled, inAppTrailerPlaybackEnabled — build flavor feature gates",
+    "AddonWebConfigMode.FULL / ADDONS_ONLY / COLLECTIONS_ONLY — web phone config access levels",
+    "PlayerPreference.Internal / External / Ask — player selection preference",
+    "StreamAutoPlayMode.MANUAL / FIRST_STREAM — auto-play stream selection modes"
+  ]
+}
